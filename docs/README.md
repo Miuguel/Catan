@@ -20,18 +20,6 @@ Preencham datas, nomes da equipe e valores reais onde estiver `[PLACEHOLDER]`.
 
 ## Guia para colaboradores (GitHub e alterações)
 
-### 1. Quem cria o repositório e quem pode alterar
-
-1. **Uma pessoa da equipe** (idealmente quem já tem conta no GitHub) cria o repositório **vazio** em [github.com/new](https://github.com/new) (por exemplo `catan-es2` ou o nome combinado com o professor).
-2. Essa pessoa **adiciona os demais como colaboradores**:
-   - No GitHub: abra o repositório → **Settings** → **Collaborators** (ou **Manage access**) → **Add people** → informe o **usuário GitHub** ou o e-mail de cada colega.
-3. Cada integrante **aceita o convite** (chega por e-mail ou em **GitHub → Notifications**).
-
-Assim todos podem **clonar**, **criar branches**, **fazer push** e abrir **Pull Requests** sem depender de um único computador.
-
-> **Repositório privado:** recomendado para trabalho acadêmico; só quem for convidado vê o conteúdo.  
-> **Repositório público:** qualquer um vê; ainda assim só colaboradores autorizados alteram o código, a menos que aceitem *forks* e *pull requests* externos.
-
 ### 2. Obter o projeto no seu computador (clone)
 
 1. Instale o [Git](https://git-scm.com/downloads) se ainda não tiver.
@@ -92,7 +80,6 @@ git branch -M main
 git push -u origin main
 ```
 
-Os outros membros só precisam do **clone** (passo 2).
 
 ### 5. Conflitos e trabalho em paralelo
 
@@ -113,5 +100,3 @@ Arquivos fora desse escopo (por exemplo anotações locais em `decisoes/` ou có
 | Não tenho acesso | Peça ao dono do repo para adicionar você em **Settings → Collaborators**. |
 | Erro “permission denied” no push | Confirme login no GitHub; em HTTPS pode usar **Personal Access Token** em vez da senha. |
 | Quero desfazer antes do commit | `git restore arquivo.md` (Git recente) ou `git checkout -- arquivo.md`. |
-
-Para o trabalho em equipe, combinem no grupo de mensagens **quem revisa PRs** e **prazos** para cada artefato.
