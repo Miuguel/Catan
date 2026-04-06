@@ -1,0 +1,19 @@
+# Fase atual: documentação em docs/; pastas backend/ e frontend/ reservadas (vazias no remoto).
+/decisoes/
+
+/backend/*
+!/backend/.gitkeep
+
+/frontend/*
+!/frontend/.gitkeep
+
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.idea/
+.vscode/
+coverage/
