@@ -1,95 +1,124 @@
 # Monitoramento e controle — Burndown e Valor Agregado
 
-## 1. O que o professor costuma querer ver
+## 1. Premissas do projeto (fonte dos números)
 
-- **Burndown por sprint:** trabalho restante (story points ou tarefas) **dia a dia** ao longo do sprint.
-- **Valor agregado (EVM):** curva planejada vs. real de valor entregue (PV, EV, AC) — mesmo que simplificado.
+Estes valores estão alinhados ao **Planning Poker**, **EAP** e **custo/orçamento** já documentados:
 
-## 2. Burndown — como produzir
+| Premissa | Valor |
+|----------|--------|
+| Backlog total (BAC em story points) | **136 SP** |
+| Conversão esforço | **1 SP = 4 h** (544 h totais) |
+| Valor hora-homem | **R$ 35,00/h** |
+| Sprint | **1 semana** (5 dias úteis) |
+| Velocidade inicial estimada | **24 SP/sprint** |
 
-### Dados necessários
+**Definition of Done (DoD) usada nos exemplos abaixo:** história/documento concluído, revisado em par e integrado no repositório (`main` ou branch de entrega combinada).
 
-- Backlog da sprint com **tarefas estimadas** (horas ou pontos).
-- Registro diário do **restante** (não só “feito”).
-- Data de início/fim da sprint e dias úteis considerados.
-- Definição objetiva do que conta como “concluído” (DoD).
+> Os quadros numéricos a seguir são um **modelo preenchido de forma coerente** com essas premissas, para uso na disciplina. Substitua por **medições reais** (board, planilha de horas) assim que o grupo registrar sprints de verdade.
 
-### Ferramentas
+---
 
-- **GitHub Projects** com campos de sprint + export manual para planilha.
-- **Excel / Google Sheets:** coluna Dia, Restante ideal, Restante real.
-- **Azure DevOps / Jira:** burndown automático se usarem sprints formais.
+## 2. Burndown — Sprint 1
 
-### Modelo de tabela (exemplo)
+**Objetivo da Sprint 1 (ilustrativo):** fechar artefatos da 1ª entrega em `docs/` (escopo, EAP, estimativas, custo, riscos, monitoramento) e alinhar repositório.
 
-| Dia | Ideal restante (SP) | Real restante (SP) | Notas |
-|-----|----------------------|---------------------|-------|
-| 1 | 20 | 20 | Início sprint |
-| 2 | 16 | 18 | Atraso por bloqueio em [X] |
-| ... | ... | ... | |
-| 10 | 0 | 2 | Carryover para próxima sprint |
+**Compromisso do sprint:** **24 SP** (igual à velocidade planejada).
 
-**Gráfico:** eixo X = dias, eixo Y = restante; duas linhas (ideal vs. real).
+**Dias úteis:** 5 (segunda a sexta).
 
-### Como preencher com o que já foi feito
-
-1. Some o total planejado da sprint (ex.: 24 SP).
-2. No dia 1, `Real restante` = total planejado.
-3. Ao fim de cada dia, atualize `Real restante` com base no que ainda falta.
-4. Não registre só tarefa iniciada; só reduza quando realmente concluída pela DoD.
-5. Se entrar escopo novo na sprint, anote em `Notas` e ajuste o total explicitamente.
-
-Exemplo curto (preenchimento realista):
+**Linha ideal:** redução linear de 24 SP até 0 → **4,8 SP por dia** (nos números abaixo, arredondamentos por dia mantêm o total).
 
 | Dia | Ideal restante (SP) | Real restante (SP) | Notas |
 |-----|----------------------|---------------------|-------|
-| 1 | 24 | 24 | Planejamento da sprint |
-| 2 | 21 | 22 | Refinamento de requisitos levou mais tempo |
-| 3 | 18 | 20 | Concluída EAP e parte de escopo |
-| 4 | 15 | 17 | Revisão entre pares dos documentos |
-| 5 | 12 | 14 | Fechadas estimativas e orçamento |
+| 1 (início) | 24 | 24 | Planejamento do sprint e divisão de tarefas |
+| 2 | 19 | 21 | Ajustes finos em escopo e EAP |
+| 3 | 14 | 17 | Estimativas (Planning Poker) e revisão |
+| 4 | 10 | 12 | Custo/orçamento e análise de riscos |
+| 5 (fim) | 5 | 6 | Burndown/EVM e revisão final; 1 história pequena ficou para Sprint 2 |
 
-### O que escrever na apresentação
+**Resultado do exemplo:** concluídos **18 SP** no sprint; **6 SP** permanecem (carryover) — em geral por refinamento de texto e revisão cruzada. **Velocity realizada = 18 SP** (ajustar a velocidade média nas próximas sprints).
 
-- Se a linha real ficou acima do ideal: **causa** e **ação** (ex.: quebrar histórias menores).
-- **Velocity** do sprint = pontos concluídos.
+**Interpretação para apresentação:** a linha real ficou **acima** da ideal nos dias 2–4 (**causa:** revisões e alinhamento em grupo); **ação:** quebrar tarefas menores no próximo sprint e limitar escopo de “polimento” por dia.
 
-## 3. Valor agregado (EVM) — versão acadêmica simplificada
+**Gráfico:** eixo X = dia; eixo Y = trabalho restante (SP); duas linhas (ideal vs. real).
 
-### Conceitos
+---
 
-- **BAC** (Budget at Completion): trabalho total planejado do projeto (ex.: 800 h ou 100 SP).
-- **PV** (Planned Value): quanto **deveria** estar pronto até a data.
-- **EV** (Earned Value): quanto **está** pronto de fato (validado).
-- **AC** (Actual Cost): esforço gasto (horas reais).
+## 3. Valor agregado (EVM)
 
-### Índices úteis
+### 3.1 Conceitos
 
-- **CPI** = EV / AC (&gt;1 bom custo).
-- **SPI** = EV / PV (&gt;1 bom prazo).
+| Sigla | Nome | Significado |
+|-------|------|-------------|
+| **BAC** | Orçamento no término | Trabalho total planejado: **136 SP** |
+| **PV** | Valor planejado | Quanto **deveria** estar pronto (SP acumulados) na data |
+| **EV** | Valor agregado | Quanto **está** pronto e aceito pela DoD (SP acumulados) |
+| **AC** | Custo real | Horas efetivamente gastas (planilha/Toggl) |
 
-### Exemplo numérico (preencher com dados reais)
+**Índices (no fim de cada período):**
 
-| Semana | PV (SP) | EV (SP) | AC (h) |
-|--------|---------|---------|--------|
-| 1 | 10 | 8 | 40 |
-| 2 | 20 | 18 | 85 |
+- **SPI** = EV ÷ PV (**> 1** indica à frente do cronograma planejado em valor).
+- **CPI** ≈ (EV × 4 h/SP) ÷ AC — interpretação: compara **horas “ganhas”** (1 SP = 4 h) com **horas reais gastas**. **> 1** indica melhor eficiência que o previsto.
 
-Interpretação exemplo: na semana 2, **SPI = 18/20 = 0,9** (ligeiro atraso no valor entregue vs. planejado).
+### 3.2 Plano de valor ao longo do tempo (PV)
 
-### Gráfico sugerido
+Com **24 SP/sprint** e **136 SP** no total, o valor planejado acumulado fecha em **6 sprints** (5 × 24 + 16 = 136):
 
-- Eixo X: tempo (semanas ou sprints).
-- Eixo Y: valor acumulado.
-- Três linhas: **PV**, **EV**, **AC** (se AC em horas, usar eixo secundário ou normalizar).
+| Sprint (semana) | Incremento planejado (SP) | PV acumulado (SP) |
+|-----------------|---------------------------|-------------------|
+| 1 | 24 | 24 |
+| 2 | 24 | 48 |
+| 3 | 24 | 72 |
+| 4 | 24 | 96 |
+| 5 | 24 | 120 |
+| 6 | 16 | **136** |
+
+### 3.3 Controle — exemplo numérico (EV e AC)
+
+Valores **ilustrativos**: leve atraso no valor entregue no início; recuperação gradual. **AC** = horas reais acumuladas do grupo.
+
+| Sprint | PV (SP) | EV (SP) | AC (h) | SPI (EV/PV) | CPI ≈ (EV×4)/AC |
+|--------|---------|---------|--------|-------------|-----------------|
+| 1 | 24 | 18 | 98 | 0,75 | 0,73 |
+| 2 | 48 | 40 | 205 | 0,83 | 0,78 |
+| 3 | 72 | 64 | 310 | 0,89 | 0,83 |
+| 4 | 96 | 88 | 415 | 0,92 | 0,85 |
+| 5 | 120 | 112 | 518 | 0,93 | 0,86 |
+| 6 | 136 | 128 | 598 | 0,94 | 0,86 |
+
+**Leitura exemplo (Sprint 1):** **SPI = 0,75** — até o fim da primeira semana, só **18 SP** foram concluídos dos **24 SP** planejados. **CPI ≈ 0,73** — para cada hora gasta, o grupo “ganhou” um pouco menos de trabalho validado do que o esperado pelo ritmo 1 SP = 4 h.
+
+**Leitura exemplo (Sprint 6):** **SPI = 0,94** — pequeno atraso acumulado vs. cronograma de valor; **CPI ≈ 0,86** — eficiência melhorou com o tempo, mas ainda abaixo de 1 (vale registrar causas: curva de aprendizado, dependência de revisões).
+
+### 3.4 Custo monetário (opcional, ligado ao orçamento)
+
+Com **R$ 35,00/h** e **AC** em horas:
+
+| Sprint | AC (h) | Custo real acumulado (R$) |
+|--------|--------|---------------------------|
+| 1 | 98 | 3.430,00 |
+| 2 | 205 | 7.175,00 |
+| 3 | 310 | 10.850,00 |
+| 4 | 415 | 14.525,00 |
+| 5 | 518 | 18.130,00 |
+| 6 | 598 | 20.930,00 |
+
+*(Valores de AC são exemplos; o teto de mão de obra planejada no orçamento é **544 h** → **R$ 19.040,00** em custo de desenvolvimento — use medições reais para comparar.)*
+
+### 4.5 Gráfico sugerido
+
+- Eixo X: sprint (1…6).
+- Eixo Y esquerdo: **PV** e **EV** (SP acumulados).
+- Opcional eixo Y direito ou segunda série normalizada: **AC** (h) ou custo (R$).
+
+---
 
 ## 4. Definition of Done (alinha EV com qualidade)
 
-Sugestão mínima:
+- Artefato em `docs/` revisado por outro membro e versionado no GitHub.
+- Para código (sprints futuros): merge em `main` via PR; teste ou checklist registrado.
 
-- Código em `main` via PR revisado.
-- Testes ou checklist manual documentado para a história.
-- Documentação atualizada se afetar API ou setup.
+---
 
 ## 5. Artefatos para anexar na entrega
 
@@ -101,4 +130,10 @@ Sugestão mínima:
 
 ---
 
-*Ferramenta de registro de horas (Toggl, planilha, etc.): [PLACEHOLDER]*
+## 6. Ferramenta de registro
+
+**Sugestão:** planilha compartilhada (Google Sheets) ou **Toggl** / relatório de horas por integrante; **uma pessoa** consolida AC por sprint.
+
+---
+
+*Versão: 2.0 — modelo numérico alinhado a 136 SP, 24 SP/sprint e R$ 35,00/h — 07/04/2026*
