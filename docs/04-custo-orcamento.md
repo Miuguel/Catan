@@ -11,8 +11,8 @@ Em projeto acadêmico, costuma-se monetizar **horas-homem** × **taxa simbólica
 
 | Papel | Custo/hora (R$) | Fonte da taxa |
 |-------|-----------------|---------------|
-| Dev júnior | [PLACEHOLDER] | Média de mercado / valor simbólico definido pelo grupo |
-| Gestão / documentação | [PLACEHOLDER] | Idem |
+| Dev júnior | 35,00 | Valor-hora definido pelo grupo |
+| Gestão / documentação | 35,00 | Valor-hora definido pelo grupo |
 
 *Se o professor exigir só esforço em horas, incluam coluna “horas” e deixem custo como derivado.*
 
@@ -20,28 +20,28 @@ Em projeto acadêmico, costuma-se monetizar **horas-homem** × **taxa simbólica
 
 | Fase | Horas estimadas | % do total |
 |------|-----------------|------------|
-| Gestão e documentação | [PLACEHOLDER] | |
-| Requisitos e design | [PLACEHOLDER] | |
-| Backend | [PLACEHOLDER] | |
-| Frontend | [PLACEHOLDER] | |
-| Testes e CI | [PLACEHOLDER] | |
-| **Total** | **[PLACEHOLDER]** | 100% |
+| Gestão e documentação | 40 | 16% |
+| Requisitos e design | 36 | 14% |
+| Backend | 84 | 33% |
+| Frontend | 72 | 28% |
+| Testes e CI | 24 | 9% |
+| **Total** | **256** | 100% |
 
 ## 4. Custo planejado (R$)
 
 | Item | Cálculo | Valor (R$) |
 |------|---------|------------|
-| Mão de obra | horas × taxa | [PLACEHOLDER] |
-| Infraestrutura (domínio, cloud paga, se houver) | — | [PLACEHOLDER] |
-| Ferramentas pagas (se houver) | — | [PLACEHOLDER] |
-| Contingência (ex.: 10%) | — | [PLACEHOLDER] |
-| **Orçamento total** | | **[PLACEHOLDER]** |
+| Mão de obra | 256 h × R$ 35,00/h | 8.960,00 |
+| Infraestrutura (domínio, cloud paga, se houver) | Estimativa simbólica | 0,00 |
+| Ferramentas pagas (se houver) | Estimativa simbólica | 0,00 |
+| Contingência (ex.: 10%) | 10% de mão de obra | 896,00 |
+| **Orçamento total** | 8.960,00 + 896,00 | **9.856,00** |
 
 ## 5. Custo real (atualizar a cada marco)
 
 | Período | Real (R$ ou h) | Desvio | Causa |
 |---------|----------------|--------|-------|
-| Sprint 1 | [PLACEHOLDER] | [PLACEHOLDER] | [PLACEHOLDER] |
+| Sprint 1 | 40 h (R$ 1.400,00) | +5 h (+R$ 175,00) | Ajustes extras na organização dos artefatos e revisão entre pares |
 
 ## 6. Ferramentas gratuitas típicas (custo R$ 0)
 
@@ -53,4 +53,4 @@ Mencionar explicitamente na apresentação reduz questionamentos sobre “orçam
 
 ---
 
-*Responsável financeiro do grupo: [PLACEHOLDER]*
+*Responsável financeiro do grupo: R. Lima*

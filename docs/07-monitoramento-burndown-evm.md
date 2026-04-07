@@ -11,6 +11,8 @@
 
 - Backlog da sprint com **tarefas estimadas** (horas ou pontos).
 - Registro diário do **restante** (não só “feito”).
+- Data de início/fim da sprint e dias úteis considerados.
+- Definição objetiva do que conta como “concluído” (DoD).
 
 ### Ferramentas
 
@@ -28,6 +30,24 @@
 | 10 | 0 | 2 | Carryover para próxima sprint |
 
 **Gráfico:** eixo X = dias, eixo Y = restante; duas linhas (ideal vs. real).
+
+### Como preencher com o que já foi feito
+
+1. Some o total planejado da sprint (ex.: 24 SP).
+2. No dia 1, `Real restante` = total planejado.
+3. Ao fim de cada dia, atualize `Real restante` com base no que ainda falta.
+4. Não registre só tarefa iniciada; só reduza quando realmente concluída pela DoD.
+5. Se entrar escopo novo na sprint, anote em `Notas` e ajuste o total explicitamente.
+
+Exemplo curto (preenchimento realista):
+
+| Dia | Ideal restante (SP) | Real restante (SP) | Notas |
+|-----|----------------------|---------------------|-------|
+| 1 | 24 | 24 | Planejamento da sprint |
+| 2 | 21 | 22 | Refinamento de requisitos levou mais tempo |
+| 3 | 18 | 20 | Concluída EAP e parte de escopo |
+| 4 | 15 | 17 | Revisão entre pares dos documentos |
+| 5 | 12 | 14 | Fechadas estimativas e orçamento |
 
 ### O que escrever na apresentação
 

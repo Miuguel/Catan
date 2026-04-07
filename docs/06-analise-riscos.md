@@ -26,7 +26,7 @@ Escala sugerida **1–5** (ajustar com o professor).
 | R06 | Professor altera critérios de avaliação | Externo | 2 | 4 | 8 | Média |
 | R07 | Ambiente de deploy instável na demo | Operacional | 3 | 3 | 9 | Média |
 
-*Atualizem P/I com a realidade da equipe.*
+*Atualizem P/I com a realidade da equipe a cada revisão semanal.*
 
 ## 3. Planos de contenção (antes do evento)
 
@@ -66,9 +66,9 @@ Impacto
 
 | Frequência | Atividade | Responsável |
 |------------|-----------|-------------|
-| Semanal | Revisar top 5 riscos na retrospectiva | [PLACEHOLDER] |
-| Por sprint | Atualizar probabilidade se contexto mudar | [PLACEHOLDER] |
+| Semanal | Revisar top 5 riscos na retrospectiva | R. Lima |
+| Por sprint | Atualizar probabilidade se contexto mudar | M. Azevedo |
 
 ---
 
-*Versão: [PLACEHOLDER]*
+*Versão: 1.1 (07/04/2026)*
