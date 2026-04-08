@@ -4,10 +4,10 @@
 
 | Marco | Data alvo | Entrega associada |
 |-------|-----------|-------------------|
-| M0 — Kickoff | [PLACEHOLDER] | Escopo inicial, definição de stack |
-| M1 — 1ª entrega ES2 | [PLACEHOLDER] | Documentação + produto parcial |
-| M2 — MVP jogável | [PLACEHOLDER] | Partida fim a fim com regras “lite” |
-| M3 — Encerramento | [PLACEHOLDER] | Relatório final, demo, retrospectiva |
+| M0 — Kickoff | 18/03/2026 | Escopo inicial, definição do grupo |
+| M1 — 1ª entrega ES2 | 08/04/2026 | Documentação + produto parcial |
+| M2 — MVP jogável | 13/05/2026 | Motor de regras, mecanicas basicas |
+| M3 — Encerramento | 08/06/2026 | Relatório final, demo, retrospectiva |
 
 ## 2. Gantt (diagrama Mermaid)
 
