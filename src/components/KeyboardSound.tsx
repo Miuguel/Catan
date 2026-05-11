@@ -12,7 +12,7 @@ const KeyboardSound: React.FC<KeyboardSoundProps> = ({
   debounceDelay = 750, // 0.75 segundos
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<number | null>(null);
   const isPlayingRef = useRef<boolean>(false);
 
   useEffect(() => {

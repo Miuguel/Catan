@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Menu, PlayerSelection, Game, BackgroundMusic } from "./components";
 import HoverSound from "./components/HoverSound";
+import ClickSound from "./components/ClickSound";
 
 type Screen = "menu" | "playerSelection" | "game";
 
@@ -18,6 +19,7 @@ function App() {
   }, []);
 
   const toggleSound = useCallback(() => {
+    window.__clickSounds?.playClickSound?.();
     setSoundEnabled((prev) => !prev);
   }, []);
 
@@ -40,6 +42,7 @@ function App() {
         <button
           type="button"
           onClick={toggleSound}
+          onMouseEnter={() => window.__hoverSounds?.playHoverSound?.()}
           aria-label={soundEnabled ? "Desativar áudio" : "Ativar áudio"}
           style={{
             position: "fixed",
@@ -73,6 +76,8 @@ function App() {
 
       {/* Som de hover global para todos os botões */}
       <HoverSound src="/assets/audio/button_hover.mp3" volume={0.5} />
+      {/* Som de clique global para todos os botões */}
+      <ClickSound src="/assets/audio/button_click.mp3" volume={0.5} />
     </>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import KeyboardSound from "./KeyboardSound";
+import AvatarArrowSound from "./AvatarArrowSound";
 import styles from "../styles/PlayerSelection.module.css";
 
 interface PlayerSelectionProps {
@@ -40,24 +41,32 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
   }, []);
 
   const handlePrevAvatar = useCallback(() => {
+    window.__avatarSounds?.playAvatarArrowSound?.();
     setCurrentAvatarIndex((prev) =>
       prev === 0 ? avatars.length - 1 : prev - 1
     );
   }, [avatars.length]);
 
   const handleNextAvatar = useCallback(() => {
+    window.__avatarSounds?.playAvatarArrowSound?.();
     setCurrentAvatarIndex((prev) =>
       prev === avatars.length - 1 ? 0 : prev + 1
     );
   }, [avatars.length]);
 
   const handleConfirm = useCallback(() => {
+    window.__clickSounds?.playClickSound?.();
     if (!playerName.trim()) {
       alert("Por favor, insira um nome para seu personagem.");
       return;
     }
     onConfirm(playerName.trim());
   }, [playerName, onConfirm]);
+
+  const handleBack = useCallback(() => {
+    window.__clickSounds?.playClickSound?.();
+    onBack();
+  }, [onBack]);
 
   const currentAvatar = avatars[currentAvatarIndex];
 
@@ -195,7 +204,7 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
           <button
             type="button"
             className={`${styles.btn} ${styles.btnSecondary}`}
-            onClick={onBack}
+            onClick={handleBack}
             onMouseEnter={() => window.__hoverSounds?.playHoverSound?.()}
           >
             Voltar
@@ -203,6 +212,7 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
         </div>
       </div>
       <KeyboardSound src="/assets/audio/keyboard.mp3" volume={0.5} />
+      <AvatarArrowSound src="/assets/audio/slice_avatars.wav" volume={0.5} />
     </div>
   );
 };

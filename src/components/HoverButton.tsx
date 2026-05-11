@@ -27,11 +27,18 @@ const HoverButton: React.FC<HoverButtonProps> = ({
     window.__hoverSounds?.playHoverSound?.();
   }, []);
 
+  const handleClick = useCallback(() => {
+    // Toca o som de clique
+    window.__clickSounds?.playClickSound?.();
+    // Executa a função original
+    onClick();
+  }, [onClick]);
+
   return (
     <button
       className={styles.hoverButton}
       style={{ left, top, width, height }}
-      onClick={onClick}
+      onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       aria-label={alt}
       type="button"
