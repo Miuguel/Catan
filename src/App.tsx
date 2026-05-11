@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Menu, PlayerSelection, Game, BackgroundMusic } from "./components";
+import HoverSound from "./components/HoverSound";
 
 type Screen = "menu" | "playerSelection" | "game";
 
@@ -69,6 +70,9 @@ function App() {
       {currentScreen === "game" && (
         <Game playerName={playerName} onBack={goToMenu} />
       )}
+
+      {/* Som de hover global para todos os botões */}
+      <HoverSound src="/assets/audio/button_hover.mp3" volume={0.5} />
     </>
   );
 }

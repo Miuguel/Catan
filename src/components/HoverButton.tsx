@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import styles from "../styles/HoverButton.module.css";
 
 export interface HoverButtonProps {
@@ -21,11 +22,17 @@ const HoverButton: React.FC<HoverButtonProps> = ({
   height,
   onClick,
 }) => {
+  const handleMouseEnter = useCallback(() => {
+    // Toca o som de hover
+    window.__hoverSounds?.playHoverSound?.();
+  }, []);
+
   return (
     <button
       className={styles.hoverButton}
       style={{ left, top, width, height }}
       onClick={onClick}
+      onMouseEnter={handleMouseEnter}
       aria-label={alt}
       type="button"
     >

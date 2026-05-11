@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import KeyboardSound from "./KeyboardSound";
 import styles from "../styles/PlayerSelection.module.css";
 
 interface PlayerSelectionProps {
@@ -106,6 +107,7 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
               type="button"
               className={`${styles.arrowBtn} ${styles.arrowLeft}`}
               onClick={handlePrevAvatar}
+              onMouseEnter={() => window.__hoverSounds?.playHoverSound?.()}
               aria-label="Avatar anterior"
             >
               <svg
@@ -154,6 +156,7 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
               type="button"
               className={`${styles.arrowBtn} ${styles.arrowRight}`}
               onClick={handleNextAvatar}
+              onMouseEnter={() => window.__hoverSounds?.playHoverSound?.()}
               aria-label="Próximo avatar"
             >
               <svg
@@ -185,6 +188,7 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
             type="button"
             className={`${styles.btn} ${styles.btnPrimary}`}
             onClick={handleConfirm}
+            onMouseEnter={() => window.__hoverSounds?.playHoverSound?.()}
           >
             Confirmar
           </button>
@@ -192,11 +196,13 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
             type="button"
             className={`${styles.btn} ${styles.btnSecondary}`}
             onClick={onBack}
+            onMouseEnter={() => window.__hoverSounds?.playHoverSound?.()}
           >
             Voltar
           </button>
         </div>
       </div>
+      <KeyboardSound src="/assets/audio/keyboard.mp3" volume={0.5} />
     </div>
   );
 };
