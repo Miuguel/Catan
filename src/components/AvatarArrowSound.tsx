@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 interface AvatarArrowSoundProps {
   src: string;
@@ -11,7 +11,7 @@ const AvatarArrowSound: React.FC<AvatarArrowSoundProps> = ({
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const playAvatarArrowSound = () => {
+  const playAvatarArrowSound = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -28,7 +28,7 @@ const AvatarArrowSound: React.FC<AvatarArrowSoundProps> = ({
       console.warn("[AvatarArrowSound] Não foi possível tocar o áudio");
       audioClone.remove();
     });
-  };
+  }, [volume]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -46,7 +46,7 @@ const AvatarArrowSound: React.FC<AvatarArrowSoundProps> = ({
     return () => {
       delete window.__avatarSounds?.playAvatarArrowSound;
     };
-  }, []);
+  }, [playAvatarArrowSound]);
 
   return (
     <audio

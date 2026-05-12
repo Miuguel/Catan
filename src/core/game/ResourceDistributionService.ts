@@ -1,8 +1,6 @@
-import { Board } from "../board/Board";
 import { Tile } from "../board/Tile";
 import { GameState } from "./GameState";
 import type { ResourceInventory } from "./ResourceInventory";
-import type { ResourceType } from "./ResourceType";
 
 export class ResourceDistributionService {
   constructor(private readonly gameState: GameState) {}
@@ -17,7 +15,9 @@ export class ResourceDistributionService {
     const grantedResources: string[] = [];
 
     this.gameState.board.tiles.forEach((tile) => {
-      if (tile.isDesert || tile.hasRobber) {
+      const resourceType = tile.type;
+
+      if (resourceType === "desert" || tile.hasRobber) {
         return;
       }
 
@@ -25,8 +25,8 @@ export class ResourceDistributionService {
         return;
       }
 
-      player.addResource(tile.type, 1);
-      grantedResources.push(tile.type);
+      player.addResource(resourceType, 1);
+      grantedResources.push(resourceType);
     });
 
     return grantedResources;
@@ -46,7 +46,9 @@ export class ResourceDistributionService {
   }
 
   private distributeFromTile(tile: Tile) {
-    if (tile.isDesert) {
+    const resourceType = tile.type;
+
+    if (resourceType === "desert") {
       return;
     }
 
@@ -66,7 +68,7 @@ export class ResourceDistributionService {
       const amount = settlement.level === "city" ? 2 : 1;
       const reward: Partial<ResourceInventory> = {};
 
-      reward[tile.type as ResourceType] = amount;
+      reward[resourceType] = amount;
       player.addResources(reward);
     });
   }

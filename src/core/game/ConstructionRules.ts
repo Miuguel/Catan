@@ -1,5 +1,4 @@
 import { Board } from "../board/Board";
-import { Road } from "../board/Road";
 import { Settlement } from "../board/Settlement";
 import { GameState } from "./GameState";
 
@@ -80,7 +79,7 @@ export class ConstructionRules {
       return false;
     }
 
-    if (!this.gameState.canCurrentPlayerAfford(ConstructionCost.city)) {
+    if (!this.gameState.canCurrentPlayerAfford(CONSTRUCTION_COST.city)) {
       return false;
     }
 

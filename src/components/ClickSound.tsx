@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 interface ClickSoundProps {
   src: string;
@@ -11,7 +11,7 @@ const ClickSound: React.FC<ClickSoundProps> = ({
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const playClickSound = () => {
+  const playClickSound = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -28,7 +28,7 @@ const ClickSound: React.FC<ClickSoundProps> = ({
       console.warn("[ClickSound] Não foi possível tocar o áudio");
       audioClone.remove();
     });
-  };
+  }, [volume]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -46,7 +46,7 @@ const ClickSound: React.FC<ClickSoundProps> = ({
     return () => {
       delete window.__clickSounds?.playClickSound;
     };
-  }, []);
+  }, [playClickSound]);
 
   return (
     <audio
