@@ -115,7 +115,7 @@ export class BoardRenderer {
     const strokeColor =
       road.ownerId === null
         ? "rgba(255,255,255,0.25)"
-        : this.playerColors[road.ownerId] ?? "#f9fafb";
+        : (this.playerColors[road.ownerId] ?? "#f9fafb");
 
     this.ctx.beginPath();
     this.ctx.moveTo(vertexA.x + offsetX, vertexA.y + offsetY);
@@ -185,11 +185,15 @@ export class BoardRenderer {
     }
 
     if (settlement !== undefined) {
-      this.ctx.fillStyle =
-        this.playerColors[settlement.ownerId] ?? "#f3f4f6";
+      const settlementColor = this.playerColors[settlement.ownerId];
+      this.ctx.fillStyle = settlementColor ?? "#9ca3af";
       this.ctx.beginPath();
       this.ctx.arc(x, y, radius - 2, 0, Math.PI * 2);
       this.ctx.fill();
+
+      if (settlementColor === undefined) {
+        console.warn(`Settlement with unknown owner: ${settlement.ownerId}`);
+      }
     }
   }
 

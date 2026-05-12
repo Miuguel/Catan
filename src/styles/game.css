@@ -121,6 +121,23 @@ canvas {
   color: #f1f5f9;
   font-size: 14px;
   letter-spacing: 0.03em;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.resource-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resource-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .action-bar {
