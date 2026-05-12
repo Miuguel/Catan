@@ -24,7 +24,8 @@ canvas {
 .top-bar,
 .resource-rack,
 .action-bar,
-.status-toast {
+.status-toast,
+.game-log {
   pointer-events: auto;
 }
 
@@ -166,6 +167,39 @@ canvas {
   line-height: 1.45;
 }
 
+.game-log {
+  position: fixed;
+  right: 20px;
+  top: 92px;
+  width: 280px;
+  max-height: 260px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(8, 14, 20, 0.74);
+  color: #e5e7eb;
+  overflow: hidden;
+}
+
+.game-log__title {
+  margin-bottom: 8px;
+  color: #fcd34d;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.game-log__list {
+  display: grid;
+  gap: 6px;
+}
+
+.game-log__item {
+  color: #d1d5db;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 /* .winner-banner {
   position: fixed;
   top: 74px;
@@ -206,5 +240,13 @@ canvas {
     max-width: calc(100% - 20px);
     left: 10px;
     bottom: 90px;
+  }
+
+  .game-log {
+    top: auto;
+    right: 10px;
+    bottom: 156px;
+    width: min(280px, calc(100% - 20px));
+    max-height: 150px;
   }
 }

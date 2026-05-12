@@ -56,6 +56,7 @@ export class GameState {
   private initialPlacementCursor: number;
   private initialPlacementSettlementCount: Record<string, number>;
   private initialPlacementRoadCount: Record<string, number>;
+  private actionLog: string[];
 
   constructor(board: Board, players: Player[] = []) {
     this.board = board;
@@ -69,6 +70,7 @@ export class GameState {
     this.initialPlacementCursor = 0;
     this.initialPlacementSettlementCount = {};
     this.initialPlacementRoadCount = {};
+    this.actionLog = ["Partida iniciada."];
 
     this.players.forEach((player) => {
       this.initialPlacementSettlementCount[player.id] = 0;
@@ -82,6 +84,14 @@ export class GameState {
 
   getPlayerById(playerId: string) {
     return this.players.find((player) => player.id === playerId);
+  }
+
+  addActionLog(message: string) {
+    this.actionLog = [message, ...this.actionLog].slice(0, 12);
+  }
+
+  getActionLog() {
+    return [...this.actionLog];
   }
 
   addPlayer(player: Player) {

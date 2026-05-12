@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 interface HoverSoundProps {
   src: string;
@@ -11,7 +11,7 @@ const HoverSound: React.FC<HoverSoundProps> = ({
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const playHoverSound = () => {
+  const playHoverSound = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -30,7 +30,7 @@ const HoverSound: React.FC<HoverSoundProps> = ({
       console.warn("[HoverSound] Não foi possível tocar o áudio");
       audioClone.remove();
     });
-  };
+  }, [volume]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -48,7 +48,7 @@ const HoverSound: React.FC<HoverSoundProps> = ({
     return () => {
       delete window.__hoverSounds?.playHoverSound;
     };
-  }, []);
+  }, [playHoverSound]);
 
   return (
     <audio

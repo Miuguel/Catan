@@ -97,8 +97,12 @@ export class GameInputController {
       return;
     }
 
+    const currentPlayer = this.gameState.getCurrentPlayer();
     const roll = this.gameState.rollDice();
     this.resourceDistributionService.distributeForRoll(roll);
+    this.gameState.addActionLog(
+      `${currentPlayer?.name ?? "Jogador"} rolou ${roll}.`,
+    );
 
     if (roll === 7) {
       this.statusMessage = "Saiu 7. Resolva o descarte e depois mova o ladrão.";
@@ -116,6 +120,7 @@ export class GameInputController {
     }
 
     this.gameState.resolveSevenDiscard();
+    this.gameState.addActionLog("Descarte do 7 resolvido.");
     this.statusMessage = "Escolha um hexágono para mover o ladrão.";
     this.mode = "idle";
   }
@@ -132,6 +137,7 @@ export class GameInputController {
       return;
     }
 
+    const previousPlayer = this.gameState.getCurrentPlayer();
     this.gameState.nextTurn();
     this.mode = "idle";
     this.selectedVertexId = null;
@@ -141,6 +147,9 @@ export class GameInputController {
 
     if (currentPlayer !== undefined) {
       this.statusMessage = `Turno de ${currentPlayer.name}. Role os dados.`;
+      this.gameState.addActionLog(
+        `${previousPlayer?.name ?? "Jogador"} passou o turno para ${currentPlayer.name}.`,
+      );
     }
   }
 
@@ -237,6 +246,12 @@ export class GameInputController {
     }
 
     const { x, y, offsetX, offsetY } = position;
+    const currentPlayer = this.gameState.getCurrentPlayer();
+
+    if (currentPlayer === undefined) {
+      this.statusMessage = "Nenhum jogador ativo.";
+      return;
+    }
 
     if (this.gameState.phase === "robber") {
       const tile = this.board.getTileAtPoint(x, y, offsetX, offsetY);
@@ -259,9 +274,15 @@ export class GameInputController {
           const victimName = victim?.name ?? robbery.stolenFromPlayerId;
 
           this.statusMessage = `Ladrão movido. Você roubou 1 ${robbery.resourceType} de ${victimName}.`;
+          this.gameState.addActionLog(
+            `${currentPlayer.name} moveu o ladrão e roubou 1 ${robbery.resourceType} de ${victimName}.`,
+          );
         } else {
           this.statusMessage =
             "Ladrão movido. Nenhum jogador elegível para roubo.";
+          this.gameState.addActionLog(
+            `${currentPlayer.name} moveu o ladrão sem roubar recursos.`,
+          );
         }
       } catch (error) {
         this.statusMessage =
@@ -274,13 +295,6 @@ export class GameInputController {
       this.gameState.phase !== "main-actions" &&
       this.gameState.phase !== "initial-placement"
     ) {
-      return;
-    }
-
-    const currentPlayer = this.gameState.getCurrentPlayer();
-
-    if (currentPlayer === undefined) {
-      this.statusMessage = "Nenhum jogador ativo.";
       return;
     }
 
@@ -324,6 +338,12 @@ export class GameInputController {
           this.gameState.registerInitialPlacementRoad(currentPlayer.id);
           this.initialPlacementLastSettlementVertexId = null;
         }
+
+        this.gameState.addActionLog(
+          isInitialPlacement
+            ? `${currentPlayer.name} colocou uma estrada inicial.`
+            : `${currentPlayer.name} construiu uma estrada.`,
+        );
 
         this.selectedRoadId = road.id;
         this.selectedVertexId = null;
@@ -392,6 +412,12 @@ export class GameInputController {
           }
         }
 
+        this.gameState.addActionLog(
+          isInitialPlacement
+            ? `${currentPlayer.name} colocou uma aldeia inicial.`
+            : `${currentPlayer.name} construiu uma aldeia.`,
+        );
+
         this.selectedVertexId = vertex.id;
         this.selectedRoadId = null;
         this.statusMessage = settlementStatusMessage;
@@ -416,6 +442,9 @@ export class GameInputController {
         this.constructionRules.upgradeSettlement(vertex.id, currentPlayer.id);
         this.selectedVertexId = vertex.id;
         this.statusMessage = "Aldeia promovida a cidade.";
+        this.gameState.addActionLog(
+          `${currentPlayer.name} melhorou uma aldeia para cidade.`,
+        );
       } catch (error) {
         this.statusMessage =
           error instanceof Error

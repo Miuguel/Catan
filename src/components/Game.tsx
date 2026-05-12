@@ -82,6 +82,10 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
       </div>
 
       <div id="statusText" class="status-toast"></div>
+      <div class="game-log">
+        <div class="game-log__title">Histórico</div>
+        <div id="gameLogList" class="game-log__list"></div>
+      </div>
       <div id="winnerBanner" class="winner-banner"></div>
     `;
 
@@ -101,6 +105,7 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
       hud.querySelector<HTMLDivElement>("#victoryPointsText");
     const resourceText = hud.querySelector<HTMLDivElement>("#resourceText");
     const statusText = hud.querySelector<HTMLDivElement>("#statusText");
+    const gameLogList = hud.querySelector<HTMLDivElement>("#gameLogList");
     const winnerBanner = hud.querySelector<HTMLDivElement>("#winnerBanner");
 
     if (
@@ -115,6 +120,7 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
       victoryPointsText === null ||
       resourceText === null ||
       statusText === null ||
+      gameLogList === null ||
       winnerBanner === null
     ) {
       throw new Error("HUD elements not found");
@@ -132,23 +138,23 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
       victoryPointsText,
       resourceText,
       statusText,
+      gameLogList,
       winnerBanner,
     };
 
-    hudRefs.rollButton.addEventListener("click", () => inputController.rollDice());
-    hudRefs.settlementButton.addEventListener("click", () =>
-      inputController.setMode("build-settlement"),
-    );
-    hudRefs.roadButton.addEventListener("click", () =>
-      inputController.setMode("build-road"),
-    );
-    hudRefs.cityButton.addEventListener("click", () =>
-      inputController.setMode("upgrade-settlement"),
-    );
-    hudRefs.discardButton.addEventListener("click", () =>
-      inputController.resolveDiscard(),
-    );
-    hudRefs.passButton.addEventListener("click", () => inputController.passTurn());
+    const handleRoll = () => inputController.rollDice();
+    const handleSettlement = () => inputController.setMode("build-settlement");
+    const handleRoad = () => inputController.setMode("build-road");
+    const handleCity = () => inputController.setMode("upgrade-settlement");
+    const handleDiscard = () => inputController.resolveDiscard();
+    const handlePass = () => inputController.passTurn();
+
+    hudRefs.rollButton.addEventListener("click", handleRoll);
+    hudRefs.settlementButton.addEventListener("click", handleSettlement);
+    hudRefs.roadButton.addEventListener("click", handleRoad);
+    hudRefs.cityButton.addEventListener("click", handleCity);
+    hudRefs.discardButton.addEventListener("click", handleDiscard);
+    hudRefs.passButton.addEventListener("click", handlePass);
 
     const handleResize = () => resizeCanvas();
     window.addEventListener("resize", handleResize);
@@ -174,6 +180,15 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
       hudRefs.statusText.textContent = winner
         ? `${winner.name} venceu a partida!`
         : inputController.getStatusMessage();
+      hudRefs.gameLogList.replaceChildren(
+        ...gameState.getActionLog().map((action) => {
+          const item = document.createElement("div");
+          item.className = "game-log__item";
+          item.textContent = action;
+
+          return item;
+        }),
+      );
 
       hudRefs.winnerBanner.textContent = winner
         ? `${winner.name} venceu com ${winner.victoryPoints} VP`
@@ -195,7 +210,7 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
         gameOver || isInitialPlacement || gameState.phase !== "main-actions";
     }
 
-    let animationId: number;
+    let animationId = 0;
 
     function gameLoop() {
       ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
@@ -206,7 +221,19 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
 
     gameLoop();
 
-    
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener("resize", handleResize);
+      hudRefs.rollButton.removeEventListener("click", handleRoll);
+      hudRefs.settlementButton.removeEventListener("click", handleSettlement);
+      hudRefs.roadButton.removeEventListener("click", handleRoad);
+      hudRefs.cityButton.removeEventListener("click", handleCity);
+      hudRefs.discardButton.removeEventListener("click", handleDiscard);
+      hudRefs.passButton.removeEventListener("click", handlePass);
+      inputController.dispose();
+      hud.remove();
+      gameInitialized.current = false;
+    };
   }, [playerName, onBack]);
 
   return <canvas id="game" ref={canvasRef} />;
