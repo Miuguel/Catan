@@ -175,7 +175,7 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
         ? `VP ${currentPlayer.victoryPoints}`
         : "VP -";
       hudRefs.resourceText.textContent = currentPlayer
-        ? `Brick ${currentPlayer.resources.brick}  Lumber ${currentPlayer.resources.lumber}  Wool ${currentPlayer.resources.wool}  Grain ${currentPlayer.resources.grain}  Ore ${currentPlayer.resources.ore}`
+        ? `Tijolo ${currentPlayer.resources.brick}  Madeira ${currentPlayer.resources.lumber}  Lã ${currentPlayer.resources.wool}  Trigo ${currentPlayer.resources.grain}  Minério ${currentPlayer.resources.ore}`
         : "-";
       hudRefs.statusText.textContent = winner
         ? `${winner.name} venceu a partida!`

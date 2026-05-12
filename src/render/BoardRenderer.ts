@@ -15,6 +15,11 @@ export class BoardRenderer {
   ctx: CanvasRenderingContext2D;
   board: Board;
 
+  private readonly playerColors: Record<string, string> = {
+    "player-1": "#2563eb",
+    "player-2": "#dc2626",
+  };
+
   constructor(ctx: CanvasRenderingContext2D, board: Board) {
     this.ctx = ctx;
     this.board = board;
@@ -108,7 +113,9 @@ export class BoardRenderer {
     const offsetX = this.ctx.canvas.width / 2;
     const offsetY = this.ctx.canvas.height / 2;
     const strokeColor =
-      road.ownerId === null ? "rgba(255,255,255,0.25)" : "#f9fafb";
+      road.ownerId === null
+        ? "rgba(255,255,255,0.25)"
+        : this.playerColors[road.ownerId] ?? "#f9fafb";
 
     this.ctx.beginPath();
     this.ctx.moveTo(vertexA.x + offsetX, vertexA.y + offsetY);
@@ -179,7 +186,7 @@ export class BoardRenderer {
 
     if (settlement !== undefined) {
       this.ctx.fillStyle =
-        settlement.ownerId === "player-1" ? "#2563eb" : "#dc2626";
+        this.playerColors[settlement.ownerId] ?? "#f3f4f6";
       this.ctx.beginPath();
       this.ctx.arc(x, y, radius - 2, 0, Math.PI * 2);
       this.ctx.fill();
