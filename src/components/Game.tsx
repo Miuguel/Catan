@@ -9,11 +9,12 @@ import { BoardRenderer } from "../render/BoardRenderer";
 import { GameInputController } from "../input/GameInputController";
 
 interface GameProps {
-  playerName: string;
+  player1Name: string;
+  player2Name: string;
   onBack: () => void;
 }
 
-const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
+const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameInitialized = useRef(false);
 
@@ -37,8 +38,8 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
     const board = new Board();
     const boardRenderer = new BoardRenderer(ctx, board);
 
-    const player1 = new Player("player-1", playerName || "Jogador 1");
-    const player2 = new Player("player-2", "Jogador 2");
+    const player1 = new Player("player-1", player1Name || "Jogador 1");
+    const player2 = new Player("player-2", player2Name || "Jogador 2");
 
     const gameState = new GameState(board, [player1, player2]);
     const constructionRules = new ConstructionRules(board, gameState);
