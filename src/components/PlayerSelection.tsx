@@ -66,8 +66,10 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
     });
   }, [currentPlayer, setCurrentPlayer, avatars.length]);
 
+  // Ao clicar em confirmar
   const handleConfirm = useCallback(() => {
     window.__clickSounds?.playClickSound?.();
+    // Se faltou inserir nome válido, alertar
     if (!currentPlayer.name.trim()) {
       alert(`Por favor, insira um nome para o Jogador ${currentPlayerNumber}.`);
       return;
@@ -77,6 +79,18 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
       // Ir para o segundo jogador
       setCurrentPlayerNumber(2);
     } else {
+      // Validar que Jogador 2 tem nome diferente
+      if (currentPlayer.name.trim().toLowerCase() === player1.name.trim().toLowerCase()) {
+        alert("O Jogador 2 não pode ter o mesmo nome do Jogador 1!");
+        return;
+      }
+      
+      // Validar que Jogador 2 tem avatar diferente
+      if (currentPlayer.avatarIndex === player1.avatarIndex) {
+        alert("O Jogador 2 não pode escolher o mesmo avatar do Jogador 1!");
+        return;
+      }
+
       // Confirmar ambos os jogadores
       onConfirm(player1.name.trim(), player2.name.trim());
     }
@@ -93,6 +107,13 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
   }, [currentPlayerNumber, onBack]);
 
   const currentAvatar = avatars[currentPlayer.avatarIndex];
+
+  // Verificar se o nome atual é igual ao do outro jogador
+  const isDuplicateName = currentPlayerNumber === 2 && 
+    currentPlayer.name.trim().toLowerCase() === player1.name.trim().toLowerCase();
+
+  // Verificar se o avatar atual é igual ao do outro jogador
+  const isDuplicateAvatar = currentPlayerNumber === 2 && currentPlayer.avatarIndex === player1.avatarIndex;
 
   // Posições visíveis: -2, -1, 0, +1, +2
   const visibleSlots = [
@@ -114,6 +135,8 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
           <div className={styles.headerOrnament} />
         </div>
 
+        
+
         {/* Campo de nome */}
         <div className={styles.nameSection}>
           <label htmlFor="playerName" className={styles.label}>
@@ -129,6 +152,11 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
             maxLength={20}
             autoComplete="off"
           />
+          {isDuplicateName && (
+            <div style={{ color: "#ff6b6b", fontSize: "12px", marginTop: "4px", fontWeight: "500" }}>
+              ❌ Este nome já foi escolhido!
+            </div>
+          )}
         </div>
 
         {/* Carrossel 3D de avatares */}
@@ -159,30 +187,53 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, onConfirm }) 
 
             {/* Trilha 3D */}
             <div className={styles.carouselTrack}>
-              {visibleSlots.map((slot) => (
-                <div
-                  key={slot.avatar.id}
-                  className={`${styles.avatarSlot} ${slot.posClass}`}
-                >
-                  {slot.offset === 0 ? (
-                    <div className={styles.avatarFrame}>
+              {visibleSlots.map((slot) => {
+                // Se for Jogador 2 e este avatar é o mesmo do Jogador 1, marcar como indisponível
+                const isUnavailable = currentPlayerNumber === 2 && slot.avatar.id === avatars[player1.avatarIndex].id;
+                
+                return (
+                  <div
+                    key={slot.avatar.id}
+                    className={`${styles.avatarSlot} ${slot.posClass} ${isUnavailable ? styles.avatarUnavailable : ""}`}
+                  >
+                    {slot.offset === 0 ? (
+                      <div className={styles.avatarFrame}>
+                        <img
+                          src={slot.avatar.src}
+                          alt={slot.avatar.alt}
+                          className={styles.avatarImgMain}
+                          draggable={false}
+                          style={isUnavailable ? { opacity: 0.4 } : {}}
+                        />
+                        {isUnavailable && slot.offset === 0 && (
+                          <div style={{
+                            position: "absolute",
+                            top: "50%",
+                            left: "50%",
+                            transform: "translate(-50%, -50%)",
+                            color: "#ff6b6b",
+                            fontSize: "12px",
+                            fontWeight: "bold",
+                            textAlign: "center",
+                            pointerEvents: "none",
+                            zIndex: 10,
+                          }}>
+                            Já escolhido!
+                          </div>
+                        )}
+                      </div>
+                    ) : (
                       <img
                         src={slot.avatar.src}
                         alt={slot.avatar.alt}
-                        className={styles.avatarImgMain}
+                        className={styles.avatarImgSide}
                         draggable={false}
+                        style={isUnavailable ? { opacity: 0.4 } : {}}
                       />
-                    </div>
-                  ) : (
-                    <img
-                      src={slot.avatar.src}
-                      alt={slot.avatar.alt}
-                      className={styles.avatarImgSide}
-                      draggable={false}
-                    />
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Seta direita */}
