@@ -1,73 +1,110 @@
-# React + TypeScript + Vite
+# Catan
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Trabaho de ES2 2026.1 - Catan
 
-Currently, two official plugins are available:
+## Requisitos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js
+- npm
 
-## React Compiler
+## Como rodar
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Instale as dependências:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Inicie o servidor local:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+Depois abra no navegador o endereço mostrado no terminal. Normalmente será:
+
+```text
+http://localhost:5173/
+```
+
+## Scripts úteis
+
+Rodar em modo desenvolvimento:
+
+```bash
+npm run dev
+```
+
+Gerar build:
+
+```bash
+npm run build
+```
+
+## Estratégia de ramificação
+
+O projeto usa **GitHub Flow** como estratégia de ramificação:
+
+1. A branch `main` deve ter sempre uma versão estável.
+2. Cada tarefa deve ser feita em uma branch criada a partir da `main`.
+3. Ao terminar a tarefa, abrir um Pull Request para a `main`.
+4. Depois da revisão, fazer o merge na `main`.
+
+As modificações solicitadas são controladas por **GitHub Issues**. Cada alteração deve estar associada a uma issue, com a descrição do problema ou melhoria e a justificativa da modificação realizada. A integração do código acontece por meio de **Pull Requests**, com revisão/aprovação antes do merge na `main`.
+
+Validar automaticamente os Pull Requests, executando pelo menos:
+
+```bash
+npm run build
+npm run lint
+```
+
+O nome da branch vem do card/issue do GitHub Project. Ao clicar em **Create a branch** no card, o GitHub gera automaticamente uma branch usando o número e o título do card.
+
+Exemplo: para o card **Histórico de ações #9**, a branch gerada fica parecida com:
+
+```text
+9-historico-de-acoes
+```
+
+Depois disso, basta trazer a branch para o ambiente local:
+
+```bash
+git checkout main
+git pull origin main
+git fetch origin
+git switch --track origin/9-historico-de-acoes
+```
+
+O padrão usado é:
+
+```text
+numero-do-card-titulo-do-card
+```
+
+Depois de alterar o código:
+
+```bash
+npm run build
+npm run lint
+git add .
+git commit -m "feat: adiciona historico de acoes"
+git push -u origin 9-historico-de-acoes
+```
+
+Use nomes de branch curtos, em minusculas, sem acentos e separados por hifen, por exemplo:
+
+```text
+10-distribuir-recursos
+11-melhorar-hud
+12-corrigir-build
+```
+
+## Estrutura
+
+- `src/components`: telas e componentes de interface.
+- `src/core`: regras, estado da partida, tabuleiro e jogadores.
+- `src/input`: controle de interação com o canvas.
+- `src/render`: desenho do tabuleiro.
+- `src/styles`: estilos da aplicação.
+- `docs`: documentação do projeto e requisitos.
