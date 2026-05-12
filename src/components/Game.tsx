@@ -76,9 +76,59 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
 
       <div class="resource-rack" id="resourceText"></div>
 
+      <div class="construction-costs">
+        <div class="construction-cost-item">
+          <div class="construction-cost-label">Aldeia</div>
+          <div class="construction-cost-resources">
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("brick")}"></span>
+              1
+            </span>
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("lumber")}"></span>
+              1
+            </span>
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("wool")}"></span>
+              1
+            </span>
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("grain")}"></span>
+              1
+            </span>
+          </div>
+        </div>
+        <div class="construction-cost-item">
+          <div class="construction-cost-label">Estrada</div>
+          <div class="construction-cost-resources">
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("brick")}"></span>
+              1
+            </span>
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("lumber")}"></span>
+              1
+            </span>
+          </div>
+        </div>
+        <div class="construction-cost-item">
+          <div class="construction-cost-label">Cidade</div>
+          <div class="construction-cost-resources">
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("grain")}"></span>
+              2
+            </span>
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("ore")}"></span>
+              3
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div class="action-bar">
-        <button id="settlementButton">Aldeia</button>
         <button id="roadButton">Estrada</button>
+        <button id="settlementButton">Aldeia</button>
         <button id="cityButton">Cidade</button>
         <button id="discardButton">Resolver 7</button>
         <button id="passButton">Passar Turno</button>
