@@ -7,14 +7,14 @@ type Screen = "menu" | "playerSelection" | "game";
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("menu");
-  const [playerName, setPlayerName] = useState<string>("");
+  const [playerNames, setPlayerNames] = useState<[string, string]>(["", ""]);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(false);
 
   const goToMenu = useCallback(() => setCurrentScreen("menu"), []);
   const goToPlayerSelection = useCallback(() => setCurrentScreen("playerSelection"), []);
 
-  const handleConfirmPlayer = useCallback((name: string) => {
-    setPlayerName(name);
+  const handleConfirmPlayers = useCallback((player1Name: string, player2Name: string) => {
+    setPlayerNames([player1Name, player2Name]);
     setCurrentScreen("game");
   }, []);
 
@@ -68,10 +68,10 @@ function App() {
 
       {currentScreen === "menu" && <Menu onPlay={goToPlayerSelection} />} 
       {currentScreen === "playerSelection" && (
-        <PlayerSelection onBack={goToMenu} onConfirm={handleConfirmPlayer} />
+        <PlayerSelection onBack={goToMenu} onConfirm={handleConfirmPlayers} />
       )}
       {currentScreen === "game" && (
-        <Game playerName={playerName} onBack={goToMenu} />
+        <Game player1Name={playerNames[0]} player2Name={playerNames[1]} onBack={goToMenu} />
       )}
 
       {/* Som de hover global para todos os botões */}

@@ -2,6 +2,7 @@ import { Board } from "../core/board/Board";
 import { ConstructionRules } from "../core/game/ConstructionRules";
 import { GameState } from "../core/game/GameState";
 import { ResourceDistributionService } from "../core/game/ResourceDistributionService";
+import { getResourceName } from "../core/game/ResourceNames";
 
 export type InputMode =
   | "idle"
@@ -99,7 +100,9 @@ export class GameInputController {
 
     const currentPlayer = this.gameState.getCurrentPlayer();
     const roll = this.gameState.rollDice();
-    this.resourceDistributionService.distributeForRoll(roll);
+    const distributions =
+      this.resourceDistributionService.distributeForRoll(roll);
+
     this.gameState.addActionLog(
       `${currentPlayer?.name ?? "Jogador"} rolou ${roll}.`,
     );
@@ -108,6 +111,27 @@ export class GameInputController {
       this.statusMessage = "Saiu 7. Resolva o descarte e depois mova o ladrão.";
       this.mode = "idle";
       return;
+    }
+
+    if (distributions.length > 0) {
+      distributions.forEach((distribution) => {
+        const player = this.gameState.getPlayerById(distribution.playerId);
+        if (
+          player !== undefined &&
+          Object.keys(distribution.resources).length > 0
+        ) {
+          const resourceList = Object.entries(distribution.resources)
+            .filter(([, amount]) => amount > 0)
+            .map(([type, amount]) => `${amount}x ${getResourceName(type)}`)
+            .join(", ");
+
+          if (resourceList) {
+            this.gameState.addActionLog(
+              `${player.name} recebeu ${resourceList}.`,
+            );
+          }
+        }
+      });
     }
 
     this.statusMessage = `Saiu ${roll}. Você pode agir agora.`;
@@ -387,6 +411,12 @@ export class GameInputController {
           isInitialPlacement,
         );
 
+        const grantedResources =
+          this.resourceDistributionService.grantResourcesForVertex(
+            vertex.id,
+            currentPlayer.id,
+          );
+
         if (isInitialPlacement) {
           this.gameState.registerInitialPlacementSettlement(currentPlayer.id);
           this.initialPlacementLastSettlementVertexId = vertex.id;
@@ -396,20 +426,25 @@ export class GameInputController {
               currentPlayer.id,
             ) === 2
           ) {
-            const grantedResources =
-              this.resourceDistributionService.grantResourcesForVertex(
-                vertex.id,
-                currentPlayer.id,
-              );
-
+            const translatedResources = grantedResources.map((r) =>
+              getResourceName(r),
+            );
             settlementStatusMessage =
-              grantedResources.length > 0
-                ? `Aldeia inicial construída. Você recebeu ${grantedResources.join(", ")}. Agora construa a estrada conectada a ela.`
+              translatedResources.length > 0
+                ? `Aldeia inicial construída. Você recebeu ${translatedResources.join(", ")}. Agora construa a estrada conectada a ela.`
                 : "Aldeia inicial construída. Agora construa a estrada conectada a ela.";
           } else {
             settlementStatusMessage =
               "Aldeia inicial construída. Agora construa a estrada conectada a ela.";
           }
+        } else {
+          const translatedResources = grantedResources.map((r) =>
+            getResourceName(r),
+          );
+          settlementStatusMessage =
+            translatedResources.length > 0
+              ? `Aldeia construída. Você recebeu ${translatedResources.join(", ")}.`
+              : "Aldeia construída.";
         }
 
         this.gameState.addActionLog(
@@ -417,6 +452,15 @@ export class GameInputController {
             ? `${currentPlayer.name} colocou uma aldeia inicial.`
             : `${currentPlayer.name} construiu uma aldeia.`,
         );
+
+        if (grantedResources.length > 0) {
+          const translatedResources = grantedResources.map((r) =>
+            getResourceName(r),
+          );
+          this.gameState.addActionLog(
+            `${currentPlayer.name} recebeu ${translatedResources.join(", ")}.`,
+          );
+        }
 
         this.selectedVertexId = vertex.id;
         this.selectedRoadId = null;

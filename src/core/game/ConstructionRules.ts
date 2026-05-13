@@ -127,10 +127,29 @@ export class ConstructionRules {
       return true;
     }
 
-    return (
+    const canBuild =
       this.board.isVertexConnectedToPlayer(vertexAId, playerId) ||
-      this.board.isVertexConnectedToPlayer(vertexBId, playerId)
-    );
+      this.board.isVertexConnectedToPlayer(vertexBId, playerId);
+
+    if (!canBuild) {
+      console.debug(
+        `Road between ${vertexAId} and ${vertexBId} not buildable for player ${playerId}`,
+        {
+          vertexA_connected: this.board.isVertexConnectedToPlayer(
+            vertexAId,
+            playerId,
+          ),
+          vertexB_connected: this.board.isVertexConnectedToPlayer(
+            vertexBId,
+            playerId,
+          ),
+          vertexA_settlement: this.board.getSettlementAtVertex(vertexAId),
+          vertexB_settlement: this.board.getSettlementAtVertex(vertexBId),
+        },
+      );
+    }
+
+    return canBuild;
   }
 
   buildSettlement(

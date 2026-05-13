@@ -2,6 +2,11 @@ import { Tile } from "../board/Tile";
 import { GameState } from "./GameState";
 import type { ResourceInventory } from "./ResourceInventory";
 
+export type ResourceDistribution = {
+  playerId: string;
+  resources: Partial<ResourceInventory>;
+};
+
 export class ResourceDistributionService {
   constructor(private readonly gameState: GameState) {}
 
@@ -32,20 +37,26 @@ export class ResourceDistributionService {
     return grantedResources;
   }
 
-  distributeForRoll(roll: number) {
+  distributeForRoll(roll: number): ResourceDistribution[] {
+    const distributions: ResourceDistribution[] = [];
+
     if (roll === 7) {
       this.gameState.setPhase("discard");
-      return;
+      return distributions;
     }
 
     this.gameState.board.tiles
       .filter((tile) => tile.numberToken === roll && !tile.hasRobber)
-      .forEach((tile) => this.distributeFromTile(tile));
+      .forEach((tile) => this.distributeFromTile(tile, distributions));
 
     this.gameState.setPhase("main-actions");
+    return distributions;
   }
 
-  private distributeFromTile(tile: Tile) {
+  private distributeFromTile(
+    tile: Tile,
+    distributions: ResourceDistribution[],
+  ) {
     const resourceType = tile.type;
 
     if (resourceType === "desert") {
@@ -70,6 +81,19 @@ export class ResourceDistributionService {
 
       reward[resourceType] = amount;
       player.addResources(reward);
+
+      const existing = distributions.find(
+        (d) => d.playerId === settlement.ownerId,
+      );
+      if (existing) {
+        existing.resources[resourceType] =
+          (existing.resources[resourceType] ?? 0) + amount;
+      } else {
+        distributions.push({
+          playerId: settlement.ownerId,
+          resources: reward,
+        });
+      }
     });
   }
 }

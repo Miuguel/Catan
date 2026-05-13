@@ -115,7 +115,7 @@ export class BoardRenderer {
     const strokeColor =
       road.ownerId === null
         ? "rgba(255,255,255,0.25)"
-        : this.playerColors[road.ownerId] ?? "#f9fafb";
+        : (this.playerColors[road.ownerId] ?? "#f9fafb");
 
     this.ctx.beginPath();
     this.ctx.moveTo(vertexA.x + offsetX, vertexA.y + offsetY);

@@ -5,15 +5,17 @@ import { ConstructionRules } from "../core/game/ConstructionRules";
 import { GameState } from "../core/game/GameState";
 import { Player } from "../core/game/Player";
 import { ResourceDistributionService } from "../core/game/ResourceDistributionService";
+import { getResourceColor } from "../core/game/ResourceNames";
 import { BoardRenderer } from "../render/BoardRenderer";
 import { GameInputController } from "../input/GameInputController";
 
 interface GameProps {
-  playerName: string;
+  player1Name: string;
+  player2Name: string;
   onBack: () => void;
 }
 
-const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
+const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameInitialized = useRef(false);
 
@@ -37,18 +39,20 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
     const board = new Board();
     const boardRenderer = new BoardRenderer(ctx, board);
 
-    const player1 = new Player("player-1", playerName || "Jogador 1");
-    const player2 = new Player("player-2", "Jogador 2");
+    const player1 = new Player("player-1", player1Name || "Jogador 1");
+    const player2 = new Player("player-2", player2Name || "Jogador 2");
 
     const gameState = new GameState(board, [player1, player2]);
     const constructionRules = new ConstructionRules(board, gameState);
-    const resourceDistributionService = new ResourceDistributionService(gameState);
+    const resourceDistributionService = new ResourceDistributionService(
+      gameState,
+    );
     const inputController = new GameInputController(
       canvas,
       board,
       gameState,
       constructionRules,
-      resourceDistributionService
+      resourceDistributionService,
     );
 
     // Criar HUD
@@ -73,6 +77,56 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
 
       <div class="resource-rack" id="resourceText"></div>
 
+      <div class="construction-costs">
+        <div class="construction-cost-item">
+          <div class="construction-cost-label">Aldeia</div>
+          <div class="construction-cost-resources">
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("brick")}"></span>
+              1
+            </span>
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("lumber")}"></span>
+              1
+            </span>
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("wool")}"></span>
+              1
+            </span>
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("grain")}"></span>
+              1
+            </span>
+          </div>
+        </div>
+        <div class="construction-cost-item">
+          <div class="construction-cost-label">Estrada</div>
+          <div class="construction-cost-resources">
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("brick")}"></span>
+              1
+            </span>
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("lumber")}"></span>
+              1
+            </span>
+          </div>
+        </div>
+        <div class="construction-cost-item">
+          <div class="construction-cost-label">Cidade</div>
+          <div class="construction-cost-resources">
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("grain")}"></span>
+              2
+            </span>
+            <span class="cost-resource">
+              <span class="cost-color" style="background-color: ${getResourceColor("ore")}"></span>
+              3
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div class="action-bar">
         <button id="settlementButton">Aldeia</button>
         <button id="roadButton">Estrada</button>
@@ -96,7 +150,8 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
       hud.querySelector<HTMLButtonElement>("#settlementButton");
     const roadButton = hud.querySelector<HTMLButtonElement>("#roadButton");
     const cityButton = hud.querySelector<HTMLButtonElement>("#cityButton");
-    const discardButton = hud.querySelector<HTMLButtonElement>("#discardButton");
+    const discardButton =
+      hud.querySelector<HTMLButtonElement>("#discardButton");
     const passButton = hud.querySelector<HTMLButtonElement>("#passButton");
     const phaseBadge = hud.querySelector<HTMLDivElement>("#phaseBadge");
     const currentPlayerText =
@@ -172,10 +227,31 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
         ? `Turno de ${currentPlayer.name}`
         : "Sem jogador";
       hudRefs.victoryPointsText.textContent = currentPlayer
-        ? `VP ${currentPlayer.victoryPoints}`
-        : "VP -";
-      hudRefs.resourceText.textContent = currentPlayer
-        ? `Tijolo ${currentPlayer.resources.brick}  Madeira ${currentPlayer.resources.lumber}  Lã ${currentPlayer.resources.wool}  Trigo ${currentPlayer.resources.grain}  Minério ${currentPlayer.resources.ore}`
+        ? `Pontuação ${currentPlayer.victoryPoints}`
+        : "Pontuação: ";
+      hudRefs.resourceText.innerHTML = currentPlayer
+        ? `
+          <span class="resource-item">
+            <span class="resource-color" style="background-color: ${getResourceColor("brick")}"></span>
+            Tijolo ${currentPlayer.resources.brick}
+          </span>
+          <span class="resource-item">
+            <span class="resource-color" style="background-color: ${getResourceColor("lumber")}"></span>
+            Madeira ${currentPlayer.resources.lumber}
+          </span>
+          <span class="resource-item">
+            <span class="resource-color" style="background-color: ${getResourceColor("wool")}"></span>
+            Lã ${currentPlayer.resources.wool}
+          </span>
+          <span class="resource-item">
+            <span class="resource-color" style="background-color: ${getResourceColor("grain")}"></span>
+            Trigo ${currentPlayer.resources.grain}
+          </span>
+          <span class="resource-item">
+            <span class="resource-color" style="background-color: ${getResourceColor("ore")}"></span>
+            Minério ${currentPlayer.resources.ore}
+          </span>
+        `
         : "-";
       hudRefs.statusText.textContent = winner
         ? `${winner.name} venceu a partida!`
@@ -191,7 +267,7 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
       );
 
       hudRefs.winnerBanner.textContent = winner
-        ? `${winner.name} venceu com ${winner.victoryPoints} VP`
+        ? `${winner.name} venceu com ${winner.victoryPoints} Pontuação`
         : "";
 
       const gameOver = gameState.isFinished();
@@ -205,7 +281,8 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
         : gameOver || gameState.phase !== "main-actions";
       hudRefs.cityButton.disabled =
         gameOver || isInitialPlacement || gameState.phase !== "main-actions";
-      hudRefs.discardButton.disabled = gameOver || gameState.phase !== "discard";
+      hudRefs.discardButton.disabled =
+        gameOver || gameState.phase !== "discard";
       hudRefs.passButton.disabled =
         gameOver || isInitialPlacement || gameState.phase !== "main-actions";
     }
@@ -234,7 +311,7 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
       hud.remove();
       gameInitialized.current = false;
     };
-  }, [playerName, onBack]);
+  }, [player1Name, player2Name, onBack]);
 
   return <canvas id="game" ref={canvasRef} />;
 };

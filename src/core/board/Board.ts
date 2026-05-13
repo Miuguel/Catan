@@ -384,11 +384,19 @@ export class Board {
       return true;
     }
 
-    return vertex.connectedRoadIds.some((roadId) => {
+    const hasPlayerRoad = vertex.connectedRoadIds.some((roadId) => {
       const road = this.getRoadById(roadId);
 
       return road !== undefined && road.ownerId === playerId;
     });
+
+    if (!hasPlayerRoad && settlement !== undefined) {
+      console.debug(
+        `Vertex ${vertexId} has settlement with owner ${settlement.ownerId} (looking for ${playerId}), no roads connected`,
+      );
+    }
+
+    return hasPlayerRoad;
   }
 
   canPlaceSettlement(vertexId: string) {
