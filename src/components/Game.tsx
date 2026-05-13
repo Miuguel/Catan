@@ -311,7 +311,7 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
       hud.remove();
       gameInitialized.current = false;
     };
-  }, [playerName, onBack]);
+  }, [player1Name, player2Name, onBack]);
 
   return <canvas id="game" ref={canvasRef} />;
 };
