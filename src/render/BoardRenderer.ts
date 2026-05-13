@@ -126,7 +126,7 @@ export class BoardRenderer {
 
     this.ctx.lineWidth = isSelected ? 10 : isHovered ? 8 : 5;
     this.ctx.strokeStyle = isSelected
-      ? "#f59e0b"
+      ? strokeColor
       : isPreview
         ? "#fcd34d"
         : strokeColor;
@@ -162,12 +162,17 @@ export class BoardRenderer {
       isHovered &&
       !isSelected;
 
+    if (settlement === undefined && !isPreview && !isSelected) {
+      return;
+    }
+
     this.ctx.beginPath();
     this.ctx.fillStyle = isSelected
       ? "#f59e0b"
       : isPreview
         ? "#fcd34d"
-        : "#f3f4f6";
+        : this.playerColors[settlement!.ownerId] ?? "#f3f4f6"; 
+    
     this.ctx.strokeStyle = "#111827";
     this.ctx.lineWidth = isSelected || isHovered ? 3 : 2;
     this.ctx.arc(x, y, radius + (isHovered ? 1 : 0), 0, Math.PI * 2);
@@ -182,18 +187,6 @@ export class BoardRenderer {
       this.ctx.setLineDash([4, 4]);
       this.ctx.stroke();
       this.ctx.setLineDash([]);
-    }
-
-    if (settlement !== undefined) {
-      const settlementColor = this.playerColors[settlement.ownerId];
-      this.ctx.fillStyle = settlementColor ?? "#9ca3af";
-      this.ctx.beginPath();
-      this.ctx.arc(x, y, radius - 2, 0, Math.PI * 2);
-      this.ctx.fill();
-
-      if (settlementColor === undefined) {
-        console.warn(`Settlement with unknown owner: ${settlement.ownerId}`);
-      }
     }
   }
 
