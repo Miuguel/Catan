@@ -127,8 +127,8 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
       </div>
 
       <div class="action-bar">
-        <button id="roadButton">Estrada</button>
         <button id="settlementButton">Aldeia</button>
+        <button id="roadButton">Estrada</button>
         <button id="cityButton">Cidade</button>
         <button id="discardButton">Resolver 7</button>
         <button id="passButton">Passar Turno</button>
@@ -226,8 +226,8 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
         ? `Turno de ${currentPlayer.name}`
         : "Sem jogador";
       hudRefs.victoryPointsText.textContent = currentPlayer
-        ? `VP ${currentPlayer.victoryPoints}`
-        : "VP -";
+        ? `Pontuação ${currentPlayer.victoryPoints}`
+        : "Pontuação: ";
       hudRefs.resourceText.innerHTML = currentPlayer
         ? `
           <span class="resource-item">
@@ -266,7 +266,7 @@ const Game: React.FC<GameProps> = ({ playerName, onBack }) => {
       );
 
       hudRefs.winnerBanner.textContent = winner
-        ? `${winner.name} venceu com ${winner.victoryPoints} VP`
+        ? `${winner.name} venceu com ${winner.victoryPoints} Pontuação`
         : "";
 
       const gameOver = gameState.isFinished();
