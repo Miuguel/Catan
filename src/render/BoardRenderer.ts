@@ -88,7 +88,6 @@ export class BoardRenderer {
       this.ctx.save();
       this.ctx.clip(hexPath);
 
-
       const imageSize = hex.size * 2.32;
       this.ctx.drawImage(
         this.tileImages[tile.type],

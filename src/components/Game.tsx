@@ -9,15 +9,21 @@ import { getResourceColor } from "../core/game/ResourceNames";
 import { BoardRenderer } from "../render/BoardRenderer";
 import { GameInputController } from "../input/GameInputController";
 
+interface PlayerConfig {
+  name: string;
+  avatarSrc: string;
+}
+
 interface GameProps {
-  player1Name: string;
-  player2Name: string;
+  players: PlayerConfig[];
   onBack: () => void;
 }
+
 
 function createOceanRenderer(ctx: CanvasRenderingContext2D) {
   const oceanImg = new Image();
   oceanImg.src = "/ocean_texture.png";
+
 
   function drawOcean(t: number) {
     const W = ctx.canvas.width;
@@ -49,6 +55,7 @@ function createOceanRenderer(ctx: CanvasRenderingContext2D) {
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
     }
+
     
   }
 
@@ -56,7 +63,8 @@ function createOceanRenderer(ctx: CanvasRenderingContext2D) {
   return { drawOcean};
 }
 
-const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
+
+const Game: React.FC<GameProps> = ({ players, onBack }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameInitialized = useRef(false);
 
@@ -81,10 +89,16 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
     const boardRenderer = new BoardRenderer(ctx, board);
     const oceanRenderer = createOceanRenderer(ctx);
 
-    const player1 = new Player("player-1", player1Name || "Jogador 1");
-    const player2 = new Player("player-2", player2Name || "Jogador 2");
+    // Cria jogadores dinamicamente (adaptável para N jogadores)
+    const gamePlayers = players.length > 0
+      ? players.map((p, i) => new Player(`player-${i + 1}`, p.name || `Jogador ${i + 1}`))
+      : [new Player("player-1", "Jogador 1"), new Player("player-2", "Jogador 2")];
 
-    const gameState = new GameState(board, [player1, player2]);
+    // Mapa de id -> avatarSrc para uso no painel
+    const avatarMap: Record<string, string> = {};
+    players.forEach((p, i) => { avatarMap[`player-${i + 1}`] = p.avatarSrc; });
+
+    const gameState = new GameState(board, gamePlayers);
     const constructionRules = new ConstructionRules(board, gameState);
     const resourceDistributionService = new ResourceDistributionService(gameState);
     const inputController = new GameInputController(
@@ -95,7 +109,6 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
       resourceDistributionService,
     );
 
-    // Criar HUD
     const hud = document.createElement("div");
     hud.className = "game-ui";
     hud.innerHTML = `
@@ -181,6 +194,11 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
         <div id="gameLogList" class="game-log__list"></div>
       </div>
       <div id="winnerBanner" class="winner-banner"></div>
+
+      <div class="players-panel">
+        <div class="players-panel__title">JOGADORES</div>
+        <div id="playersList" class="players-panel__list"></div>
+      </div>
     `;
 
     document.body.appendChild(hud);
@@ -198,12 +216,13 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
     const statusText = hud.querySelector<HTMLDivElement>("#statusText");
     const gameLogList = hud.querySelector<HTMLDivElement>("#gameLogList");
     const winnerBanner = hud.querySelector<HTMLDivElement>("#winnerBanner");
+    const playersList = hud.querySelector<HTMLDivElement>("#playersList");
 
     if (
       rollButton === null || settlementButton === null || roadButton === null ||
       cityButton === null || discardButton === null || passButton === null ||
       phaseBadge === null || currentPlayerText === null || victoryPointsText === null ||
-      resourceText === null || statusText === null || gameLogList === null || winnerBanner === null
+      resourceText === null || statusText === null || gameLogList === null || winnerBanner === null || playersList === null
     ) {
       throw new Error("HUD elements not found");
     }
@@ -211,7 +230,7 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
     const hudRefs = {
       rollButton, settlementButton, roadButton, cityButton, discardButton,
       passButton, phaseBadge, currentPlayerText, victoryPointsText,
-      resourceText, statusText, gameLogList, winnerBanner,
+      resourceText, statusText, gameLogList, winnerBanner, playersList,
     };
 
     const handleRoll = () => inputController.rollDice();
@@ -286,6 +305,26 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
         ? `${winner.name} venceu com ${winner.victoryPoints} Pontuação`
         : "";
 
+      // Painel lateral de jogadores — adaptável para N jogadores
+      const PLAYER_COLORS = ["#3b82f6", "#ef4444", "#f59e0b", "#22c55e", "#a855f7", "#ec4899"];
+      const currentPlayerId = currentPlayer?.id ?? "";
+      hudRefs.playersList.innerHTML = gameState.players.map((p, i) => {
+        const isActive = p.id === currentPlayerId;
+        const avatarSrc = avatarMap[p.id] ?? "/assets/images/avatars/avatar1.png";
+        const color = PLAYER_COLORS[i % PLAYER_COLORS.length];
+        return `
+          <div class="player-card ${isActive ? "player-card--active" : ""}" style="--player-color:${color}">
+            <div class="player-card__avatar-wrap" style="border-color:${color}">
+              <img class="player-card__avatar" src="${avatarSrc}" alt="${p.name}" />
+            </div>
+            <div class="player-card__info">
+              <span class="player-card__name" style="color:${isActive ? color : "#f1f5f9"}">${p.name.toUpperCase()}</span>
+              <span class="player-card__vp">${p.victoryPoints}</span>
+            </div>
+            ${isActive ? "<span class='player-card__star'>&#9733;</span>" : ""}
+          </div>`;
+      }).join("");
+
       const gameOver = gameState.isFinished();
       hudRefs.rollButton.disabled = gameOver || gameState.phase !== "roll-dice";
       hudRefs.settlementButton.disabled = isInitialPlacement
@@ -302,15 +341,17 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
     let animationId = 0;
 
     function gameLoop(t: number) {
-      
+
+      // 1. Fundo de mar animado
       oceanRenderer.drawOcean(t);
 
+      // 2. Tabuleiro
       boardRenderer.render(inputController.getRenderState());
 
       renderHud();
       animationId = requestAnimationFrame(gameLoop);
     }
-    //gameLoop(0);
+
     animationId = requestAnimationFrame(gameLoop);
 
     return () => {
@@ -326,7 +367,7 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
       hud.remove();
       gameInitialized.current = false;
     };
-  }, [player1Name, player2Name, onBack]);
+  }, [players, onBack]);
 
   return <canvas id="game" ref={canvasRef} />;
 };
