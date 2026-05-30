@@ -21,18 +21,11 @@ const RESOURCE_ICONS = {
   'Trigo': '🌾',
   'Minério': '⛏️'
 };
-const RESOURCE_NAMES = {
-  'Tijolo': 'Ovelha',
-  'Madeira': 'Trigo',
-  'Lã': 'Minério',
-  'Trigo': 'Madeira',
-  'Minério': 'Tijolo'
-};
+
 
 export const TradeModal: React.FC<TradeModalProps> = ({
   isOpen,
   onClose,
-  currentPlayerName,
   otherPlayers
 }) => {
   const [activeTab, setActiveTab] = useState<'player' | 'bank'>('player');
