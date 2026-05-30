@@ -19,7 +19,6 @@ interface GameProps {
   onBack: () => void;
 }
 
-
 function createOceanRenderer(ctx: CanvasRenderingContext2D) {
   const oceanImg = new Image();
   oceanImg.src = "/ocean_texture.png";
@@ -56,13 +55,10 @@ function createOceanRenderer(ctx: CanvasRenderingContext2D) {
       ctx.fillRect(0, 0, W, H);
     }
 
-    
   }
-
 
   return { drawOcean};
 }
-
 
 const Game: React.FC<GameProps> = ({ players, onBack }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -186,6 +182,16 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
         <button id="cityButton">Cidade</button>
         <button id="discardButton">Resolver 7</button>
         <button id="passButton">Passar Turno</button>
+        <button id="tradeButton">Negociar</button>
+      </div>
+
+      <div class="dev-cards-panel">
+        <div class="dev-cards-panel__title">Suas Cartas de Desenvolvimento</div>
+        <div class="dev-cards-panel__list" id="devCardsList">
+          <div class="dev-card dev-card--unknown"><span class="dev-card__symbol">?</span></div>
+          <div class="dev-card dev-card--unknown"><span class="dev-card__symbol">?</span></div>
+          <div class="dev-card dev-card--unknown"><span class="dev-card__symbol">?</span></div>
+        </div>
       </div>
 
       <div id="statusText" class="status-toast"></div>
@@ -209,6 +215,7 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
     const cityButton = hud.querySelector<HTMLButtonElement>("#cityButton");
     const discardButton = hud.querySelector<HTMLButtonElement>("#discardButton");
     const passButton = hud.querySelector<HTMLButtonElement>("#passButton");
+    const tradeButton = hud.querySelector<HTMLButtonElement>("#tradeButton");
     const phaseBadge = hud.querySelector<HTMLDivElement>("#phaseBadge");
     const currentPlayerText = hud.querySelector<HTMLDivElement>("#currentPlayerText");
     const victoryPointsText = hud.querySelector<HTMLDivElement>("#victoryPointsText");
@@ -222,14 +229,14 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
       rollButton === null || settlementButton === null || roadButton === null ||
       cityButton === null || discardButton === null || passButton === null ||
       phaseBadge === null || currentPlayerText === null || victoryPointsText === null ||
-      resourceText === null || statusText === null || gameLogList === null || winnerBanner === null || playersList === null
+      resourceText === null || statusText === null || gameLogList === null || winnerBanner === null || playersList === null || tradeButton === null
     ) {
       throw new Error("HUD elements not found");
     }
 
     const hudRefs = {
       rollButton, settlementButton, roadButton, cityButton, discardButton,
-      passButton, phaseBadge, currentPlayerText, victoryPointsText,
+      passButton, tradeButton, phaseBadge, currentPlayerText, victoryPointsText,
       resourceText, statusText, gameLogList, winnerBanner, playersList,
     };
 
@@ -239,6 +246,7 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
     const handleCity = () => inputController.setMode("upgrade-settlement");
     const handleDiscard = () => inputController.resolveDiscard();
     const handlePass = () => inputController.passTurn();
+    const handleTrade = () => { /* Negociação a implementar */ };
 
     hudRefs.rollButton.addEventListener("click", handleRoll);
     hudRefs.settlementButton.addEventListener("click", handleSettlement);
@@ -246,6 +254,7 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
     hudRefs.cityButton.addEventListener("click", handleCity);
     hudRefs.discardButton.addEventListener("click", handleDiscard);
     hudRefs.passButton.addEventListener("click", handlePass);
+    hudRefs.tradeButton.addEventListener("click", handleTrade);
 
     const handleResize = () => resizeCanvas();
     window.addEventListener("resize", handleResize);
@@ -336,6 +345,7 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
       hudRefs.cityButton.disabled = gameOver || isInitialPlacement || gameState.phase !== "main-actions";
       hudRefs.discardButton.disabled = gameOver || gameState.phase !== "discard";
       hudRefs.passButton.disabled = gameOver || isInitialPlacement || gameState.phase !== "main-actions";
+      hudRefs.tradeButton.disabled = gameOver || isInitialPlacement || gameState.phase !== "main-actions";
     }
 
     let animationId = 0;
@@ -363,6 +373,7 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
       hudRefs.cityButton.removeEventListener("click", handleCity);
       hudRefs.discardButton.removeEventListener("click", handleDiscard);
       hudRefs.passButton.removeEventListener("click", handlePass);
+      hudRefs.tradeButton.removeEventListener("click", handleTrade);
       inputController.dispose();
       hud.remove();
       gameInitialized.current = false;
