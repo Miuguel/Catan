@@ -15,6 +15,47 @@ interface GameProps {
   onBack: () => void;
 }
 
+function createOceanRenderer(ctx: CanvasRenderingContext2D) {
+  const oceanImg = new Image();
+  oceanImg.src = "/ocean_texture.png";
+
+  function drawOcean(t: number) {
+    const W = ctx.canvas.width;
+    const H = ctx.canvas.height;
+
+    if (oceanImg.complete && oceanImg.naturalWidth > 0) {
+      const tileSize = Math.max(W, H) * 0.55;
+      const driftX = (Math.sin(t * 0.00025) * 0.04 * W) % tileSize;
+      const driftY = (Math.cos(t * 0.00018) * 0.03 * H) % tileSize;
+      ctx.save();
+      const pat = ctx.createPattern(oceanImg, "repeat");
+      if (pat) {
+        const mat = new DOMMatrix();
+        mat.scaleSelf(tileSize / oceanImg.width, tileSize / oceanImg.height);
+        mat.translateSelf(driftX / (tileSize / oceanImg.width), driftY / (tileSize / oceanImg.height));
+        pat.setTransform(mat);
+        ctx.fillStyle = pat;
+        ctx.fillRect(0, 0, W, H);
+      } else {
+        ctx.fillStyle = "#1a6fa8";
+        ctx.fillRect(0, 0, W, H);
+      }
+      ctx.restore();
+    } else {
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, "#0d4f8c");
+      grad.addColorStop(0.5, "#1a7abf");
+      grad.addColorStop(1, "#0d4f8c");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+    }
+    
+  }
+
+
+  return { drawOcean};
+}
+
 const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameInitialized = useRef(false);
@@ -38,15 +79,14 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
 
     const board = new Board();
     const boardRenderer = new BoardRenderer(ctx, board);
+    const oceanRenderer = createOceanRenderer(ctx);
 
     const player1 = new Player("player-1", player1Name || "Jogador 1");
     const player2 = new Player("player-2", player2Name || "Jogador 2");
 
     const gameState = new GameState(board, [player1, player2]);
     const constructionRules = new ConstructionRules(board, gameState);
-    const resourceDistributionService = new ResourceDistributionService(
-      gameState,
-    );
+    const resourceDistributionService = new ResourceDistributionService(gameState);
     const inputController = new GameInputController(
       canvas,
       board,
@@ -146,55 +186,32 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
     document.body.appendChild(hud);
 
     const rollButton = hud.querySelector<HTMLButtonElement>("#rollButton");
-    const settlementButton =
-      hud.querySelector<HTMLButtonElement>("#settlementButton");
+    const settlementButton = hud.querySelector<HTMLButtonElement>("#settlementButton");
     const roadButton = hud.querySelector<HTMLButtonElement>("#roadButton");
     const cityButton = hud.querySelector<HTMLButtonElement>("#cityButton");
-    const discardButton =
-      hud.querySelector<HTMLButtonElement>("#discardButton");
+    const discardButton = hud.querySelector<HTMLButtonElement>("#discardButton");
     const passButton = hud.querySelector<HTMLButtonElement>("#passButton");
     const phaseBadge = hud.querySelector<HTMLDivElement>("#phaseBadge");
-    const currentPlayerText =
-      hud.querySelector<HTMLDivElement>("#currentPlayerText");
-    const victoryPointsText =
-      hud.querySelector<HTMLDivElement>("#victoryPointsText");
+    const currentPlayerText = hud.querySelector<HTMLDivElement>("#currentPlayerText");
+    const victoryPointsText = hud.querySelector<HTMLDivElement>("#victoryPointsText");
     const resourceText = hud.querySelector<HTMLDivElement>("#resourceText");
     const statusText = hud.querySelector<HTMLDivElement>("#statusText");
     const gameLogList = hud.querySelector<HTMLDivElement>("#gameLogList");
     const winnerBanner = hud.querySelector<HTMLDivElement>("#winnerBanner");
 
     if (
-      rollButton === null ||
-      settlementButton === null ||
-      roadButton === null ||
-      cityButton === null ||
-      discardButton === null ||
-      passButton === null ||
-      phaseBadge === null ||
-      currentPlayerText === null ||
-      victoryPointsText === null ||
-      resourceText === null ||
-      statusText === null ||
-      gameLogList === null ||
-      winnerBanner === null
+      rollButton === null || settlementButton === null || roadButton === null ||
+      cityButton === null || discardButton === null || passButton === null ||
+      phaseBadge === null || currentPlayerText === null || victoryPointsText === null ||
+      resourceText === null || statusText === null || gameLogList === null || winnerBanner === null
     ) {
       throw new Error("HUD elements not found");
     }
 
     const hudRefs = {
-      rollButton,
-      settlementButton,
-      roadButton,
-      cityButton,
-      discardButton,
-      passButton,
-      phaseBadge,
-      currentPlayerText,
-      victoryPointsText,
-      resourceText,
-      statusText,
-      gameLogList,
-      winnerBanner,
+      rollButton, settlementButton, roadButton, cityButton, discardButton,
+      passButton, phaseBadge, currentPlayerText, victoryPointsText,
+      resourceText, statusText, gameLogList, winnerBanner,
     };
 
     const handleRoll = () => inputController.rollDice();
@@ -261,7 +278,6 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
           const item = document.createElement("div");
           item.className = "game-log__item";
           item.textContent = action;
-
           return item;
         }),
       );
@@ -271,7 +287,6 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
         : "";
 
       const gameOver = gameState.isFinished();
-
       hudRefs.rollButton.disabled = gameOver || gameState.phase !== "roll-dice";
       hudRefs.settlementButton.disabled = isInitialPlacement
         ? initialStep !== "settlement"
@@ -279,24 +294,24 @@ const Game: React.FC<GameProps> = ({ player1Name, player2Name, onBack }) => {
       hudRefs.roadButton.disabled = isInitialPlacement
         ? initialStep !== "road"
         : gameOver || gameState.phase !== "main-actions";
-      hudRefs.cityButton.disabled =
-        gameOver || isInitialPlacement || gameState.phase !== "main-actions";
-      hudRefs.discardButton.disabled =
-        gameOver || gameState.phase !== "discard";
-      hudRefs.passButton.disabled =
-        gameOver || isInitialPlacement || gameState.phase !== "main-actions";
+      hudRefs.cityButton.disabled = gameOver || isInitialPlacement || gameState.phase !== "main-actions";
+      hudRefs.discardButton.disabled = gameOver || gameState.phase !== "discard";
+      hudRefs.passButton.disabled = gameOver || isInitialPlacement || gameState.phase !== "main-actions";
     }
 
     let animationId = 0;
 
-    function gameLoop() {
-      ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
+    function gameLoop(t: number) {
+      
+      oceanRenderer.drawOcean(t);
+
       boardRenderer.render(inputController.getRenderState());
+
       renderHud();
       animationId = requestAnimationFrame(gameLoop);
     }
-
-    gameLoop();
+    //gameLoop(0);
+    animationId = requestAnimationFrame(gameLoop);
 
     return () => {
       cancelAnimationFrame(animationId);
