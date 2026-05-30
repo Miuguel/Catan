@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import React, { useState } from "react";
 import "../styles/game.css";
 import { Board } from "../core/board/Board";
 import { ConstructionRules } from "../core/game/ConstructionRules";
@@ -8,6 +9,7 @@ import { ResourceDistributionService } from "../core/game/ResourceDistributionSe
 import { getResourceColor } from "../core/game/ResourceNames";
 import { BoardRenderer } from "../render/BoardRenderer";
 import { GameInputController } from "../input/GameInputController";
+import { TradeModal } from "./TradeModal";
 
 interface PlayerConfig {
   name: string;
@@ -63,6 +65,9 @@ function createOceanRenderer(ctx: CanvasRenderingContext2D) {
 const Game: React.FC<GameProps> = ({ players, onBack }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameInitialized = useRef(false);
+  const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
+  const [currentPlayerName, setCurrentPlayerName] = useState('');
+  const [otherPlayers, setOtherPlayers] = useState<Array<{name: string; avatarSrc: string}>>([]);
 
   useEffect(() => {
     if (gameInitialized.current) return;
@@ -246,7 +251,18 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
     const handleCity = () => inputController.setMode("upgrade-settlement");
     const handleDiscard = () => inputController.resolveDiscard();
     const handlePass = () => inputController.passTurn();
-    const handleTrade = () => { /* Negociação a implementar */ };
+    const handleTrade = () => {
+      const current = gameState.currentPlayer;
+      setCurrentPlayerName(current.name);
+      const others = gamePlayers
+        .filter(p => p.id !== current.id)
+        .map(p => ({
+          name: p.name,
+          avatarSrc: avatarMap[p.id] || '/avatar-placeholder.png'
+        }));
+      setOtherPlayers(others);
+      setIsTradeModalOpen(true);
+    };
 
     hudRefs.rollButton.addEventListener("click", handleRoll);
     hudRefs.settlementButton.addEventListener("click", handleSettlement);
@@ -380,7 +396,17 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
     };
   }, [players, onBack]);
 
-  return <canvas id="game" ref={canvasRef} />;
+  return (
+    <>
+      <canvas id="game" ref={canvasRef} />
+      <TradeModal
+        isOpen={isTradeModalOpen}
+        onClose={() => setIsTradeModalOpen(false)}
+        currentPlayerName={currentPlayerName}
+        otherPlayers={otherPlayers}
+      />
+    </>
+  );
 };
 
 export default Game;
