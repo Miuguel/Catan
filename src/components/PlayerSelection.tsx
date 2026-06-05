@@ -24,6 +24,47 @@ interface PlayerData {
   avatarIndex: number;
 }
 
+const AVATARS: AvatarOption[] = [
+  {
+    id: "avatar1",
+    src: "/assets/images/avatars/avatar1.png",
+    alt: "Cavaleiro",
+  },
+  {
+    id: "avatar2",
+    src: "/assets/images/avatars/avatar2.png",
+    alt: "Mercador",
+  },
+  {
+    id: "avatar3",
+    src: "/assets/images/avatars/avatar3.png",
+    alt: "Fazendeira",
+  },
+  { id: "avatar4", src: "/assets/images/avatars/avatar4.png", alt: "Pirata" },
+  { id: "avatar5", src: "/assets/images/avatars/avatar5.png", alt: "Monge" },
+  { id: "avatar6", src: "/assets/images/avatars/avatar6.png", alt: "Rainha" },
+  {
+    id: "avatar7",
+    src: "/assets/images/avatars/avatar7.png",
+    alt: "Ferreiro",
+  },
+  {
+    id: "avatar8",
+    src: "/assets/images/avatars/avatar8.png",
+    alt: "Exploradora",
+  },
+  {
+    id: "avatar9",
+    src: "/assets/images/avatars/avatar9.png",
+    alt: "Arqueiro",
+  },
+  {
+    id: "avatar10",
+    src: "/assets/images/avatars/avatar10.png",
+    alt: "Alquimista",
+  },
+];
+
 const PlayerSelection: React.FC<PlayerSelectionProps> = ({
   onBack,
   onConfirm,
@@ -38,54 +79,13 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({
     avatarIndex: 0,
   });
 
-  const avatars: AvatarOption[] = [
-    {
-      id: "avatar1",
-      src: "/assets/images/avatars/avatar1.png",
-      alt: "Cavaleiro",
-    },
-    {
-      id: "avatar2",
-      src: "/assets/images/avatars/avatar2.png",
-      alt: "Mercador",
-    },
-    {
-      id: "avatar3",
-      src: "/assets/images/avatars/avatar3.png",
-      alt: "Fazendeira",
-    },
-    { id: "avatar4", src: "/assets/images/avatars/avatar4.png", alt: "Pirata" },
-    { id: "avatar5", src: "/assets/images/avatars/avatar5.png", alt: "Monge" },
-    { id: "avatar6", src: "/assets/images/avatars/avatar6.png", alt: "Rainha" },
-    {
-      id: "avatar7",
-      src: "/assets/images/avatars/avatar7.png",
-      alt: "Ferreiro",
-    },
-    {
-      id: "avatar8",
-      src: "/assets/images/avatars/avatar8.png",
-      alt: "Exploradora",
-    },
-    {
-      id: "avatar9",
-      src: "/assets/images/avatars/avatar9.png",
-      alt: "Arqueiro",
-    },
-    {
-      id: "avatar10",
-      src: "/assets/images/avatars/avatar10.png",
-      alt: "Alquimista",
-    },
-  ];
-
   // Dados do jogador atualmente em seleção
   const currentPlayer = currentPlayerNumber === 1 ? player1 : player2;
   const setCurrentPlayer = currentPlayerNumber === 1 ? setPlayer1 : setPlayer2;
 
   const getIndex = (offset: number): number => {
     return (
-      (currentPlayer.avatarIndex + offset + avatars.length) % avatars.length
+      (currentPlayer.avatarIndex + offset + AVATARS.length) % AVATARS.length
     );
   };
 
@@ -102,21 +102,21 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({
       ...currentPlayer,
       avatarIndex:
         currentPlayer.avatarIndex === 0
-          ? avatars.length - 1
+          ? AVATARS.length - 1
           : currentPlayer.avatarIndex - 1,
     });
-  }, [currentPlayer, setCurrentPlayer, avatars.length]);
+  }, [currentPlayer, setCurrentPlayer]);
 
   const handleNextAvatar = useCallback(() => {
     window.__avatarSounds?.playAvatarArrowSound?.();
     setCurrentPlayer({
       ...currentPlayer,
       avatarIndex:
-        currentPlayer.avatarIndex === avatars.length - 1
+        currentPlayer.avatarIndex === AVATARS.length - 1
           ? 0
           : currentPlayer.avatarIndex + 1,
     });
-  }, [currentPlayer, setCurrentPlayer, avatars.length]);
+  }, [currentPlayer, setCurrentPlayer]);
 
   // Ao clicar em confirmar
   const handleConfirm = useCallback(() => {
@@ -148,11 +148,11 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({
 
       // Confirmar ambos os jogadores
       onConfirm([
-        { name: player1.name.trim(), avatarSrc: avatars[player1.avatarIndex].src },
-        { name: currentPlayer.name.trim(), avatarSrc: avatars[currentPlayer.avatarIndex].src },
+        { name: player1.name.trim(), avatarSrc: AVATARS[player1.avatarIndex].src },
+        { name: currentPlayer.name.trim(), avatarSrc: AVATARS[currentPlayer.avatarIndex].src },
       ]);
     }
-  }, [currentPlayer, currentPlayerNumber, player1, player2, onConfirm]);
+  }, [currentPlayer, currentPlayerNumber, player1, onConfirm]);
 
   const handleBack = useCallback(() => {
     window.__clickSounds?.playClickSound?.();
@@ -164,7 +164,7 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({
     }
   }, [currentPlayerNumber, onBack]);
 
-  const currentAvatar = avatars[currentPlayer.avatarIndex];
+  const currentAvatar = AVATARS[currentPlayer.avatarIndex];
 
   // Verificar se o nome atual é igual ao do outro jogador
   const isDuplicateName =
@@ -174,11 +174,11 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({
 
   // Posições visíveis: -2, -1, 0, +1, +2
   const visibleSlots = [
-    { offset: -2, avatar: avatars[getIndex(-2)], posClass: styles.posFarLeft },
-    { offset: -1, avatar: avatars[getIndex(-1)], posClass: styles.posNearLeft },
-    { offset: 0, avatar: avatars[getIndex(0)], posClass: styles.posCenter },
-    { offset: 1, avatar: avatars[getIndex(1)], posClass: styles.posNearRight },
-    { offset: 2, avatar: avatars[getIndex(2)], posClass: styles.posFarRight },
+    { offset: -2, avatar: AVATARS[getIndex(-2)], posClass: styles.posFarLeft },
+    { offset: -1, avatar: AVATARS[getIndex(-1)], posClass: styles.posNearLeft },
+    { offset: 0, avatar: AVATARS[getIndex(0)], posClass: styles.posCenter },
+    { offset: 1, avatar: AVATARS[getIndex(1)], posClass: styles.posNearRight },
+    { offset: 2, avatar: AVATARS[getIndex(2)], posClass: styles.posFarRight },
   ];
 
   return (
@@ -256,7 +256,7 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({
                 // Se for Jogador 2 e este avatar é o mesmo do Jogador 1, marcar como indisponível
                 const isUnavailable =
                   currentPlayerNumber === 2 &&
-                  slot.avatar.id === avatars[player1.avatarIndex].id;
+                  slot.avatar.id === AVATARS[player1.avatarIndex].id;
 
                 return (
                   <div
@@ -331,7 +331,7 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({
           <div className={styles.avatarInfo}>
             <span className={styles.avatarName}>{currentAvatar.alt}</span>
             <span className={styles.avatarCounter}>
-              {currentPlayer.avatarIndex + 1} / {avatars.length}
+              {currentPlayer.avatarIndex + 1} / {AVATARS.length}
             </span>
           </div>
         </div>

@@ -4,10 +4,25 @@ import {
 } from "./ResourceInventory";
 import type { ResourceInventory } from "./ResourceInventory";
 
+export type PieceInventory = {
+  roads: number;
+  settlements: number;
+  cities: number;
+};
+
+export function createInitialPieceInventory(): PieceInventory {
+  return {
+    roads: 15,
+    settlements: 5,
+    cities: 4,
+  };
+}
+
 export class Player {
   id: string;
   name: string;
   resources: ResourceInventory;
+  pieces: PieceInventory;
   victoryPoints: number;
   developmentCards: string[];
 
@@ -17,10 +32,12 @@ export class Player {
     resources: ResourceInventory = createEmptyResourceInventory(),
     victoryPoints = 0,
     developmentCards: string[] = [],
+    pieces: PieceInventory = createInitialPieceInventory(),
   ) {
     this.id = id;
     this.name = name;
     this.resources = cloneResourceInventory(resources);
+    this.pieces = { ...pieces };
     this.victoryPoints = victoryPoints;
     this.developmentCards = [...developmentCards];
   }
@@ -47,8 +64,9 @@ export class Player {
     );
   }
 
-  discardResources(amount: number) {
+  discardResources(amount: number): Partial<ResourceInventory> {
     let remainingToDiscard = amount;
+    const discardedResources: Partial<ResourceInventory> = {};
 
     while (remainingToDiscard > 0 && this.getTotalResources() > 0) {
       const resourceType = this.pickResourceTypeToDiscard();
@@ -58,8 +76,12 @@ export class Player {
       }
 
       this.resources[resourceType] -= 1;
+      discardedResources[resourceType] =
+        (discardedResources[resourceType] ?? 0) + 1;
       remainingToDiscard -= 1;
     }
+
+    return discardedResources;
   }
 
   canAfford(cost: Partial<ResourceInventory>) {
@@ -90,6 +112,46 @@ export class Player {
 
   addDevelopmentCard(cardName: string) {
     this.developmentCards.push(cardName);
+  }
+
+  canBuildRoadPiece() {
+    return this.pieces.roads > 0;
+  }
+
+  canBuildSettlementPiece() {
+    return this.pieces.settlements > 0;
+  }
+
+  canBuildCityPiece() {
+    return this.pieces.cities > 0;
+  }
+
+  consumeRoadPiece() {
+    if (!this.canBuildRoadPiece()) {
+      throw new Error("Player has no roads left");
+    }
+
+    this.pieces.roads -= 1;
+  }
+
+  consumeSettlementPiece() {
+    if (!this.canBuildSettlementPiece()) {
+      throw new Error("Player has no settlements left");
+    }
+
+    this.pieces.settlements -= 1;
+  }
+
+  consumeCityPiece() {
+    if (!this.canBuildCityPiece()) {
+      throw new Error("Player has no cities left");
+    }
+
+    this.pieces.cities -= 1;
+  }
+
+  releaseSettlementPiece() {
+    this.pieces.settlements += 1;
   }
 
   takeRandomResource() {

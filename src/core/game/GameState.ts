@@ -1,47 +1,18 @@
 import { Board } from "../board/Board";
+import { ConstructionCost } from "./ConstructionCost";
 import { Player } from "./Player";
 import type { ResourceInventory } from "./ResourceInventory";
+import type { ResourceType } from "./ResourceType";
 import type { TurnPhase } from "./TurnPhase";
-
-const CONSTRUCTION_COST = {
-  road: {
-    brick: 1,
-    lumber: 1,
-    wool: 0,
-    grain: 0,
-    ore: 0,
-  },
-  settlement: {
-    brick: 1,
-    lumber: 1,
-    wool: 1,
-    grain: 1,
-    ore: 0,
-  },
-  city: {
-    brick: 0,
-    lumber: 0,
-    wool: 0,
-    grain: 2,
-    ore: 3,
-  },
-  developmentCard: {
-    brick: 0,
-    lumber: 0,
-    wool: 1,
-    grain: 1,
-    ore: 1,
-  },
-} as const satisfies {
-  road: Partial<ResourceInventory>;
-  settlement: Partial<ResourceInventory>;
-  city: Partial<ResourceInventory>;
-  developmentCard: Partial<ResourceInventory>;
-};
 
 export type RobberyResult = {
   stolenFromPlayerId: string | null;
   resourceType: keyof ResourceInventory | null;
+};
+
+export type SevenDiscardResult = {
+  playerId: string;
+  discardedResources: Partial<ResourceInventory>;
 };
 
 export class GameState {
@@ -51,11 +22,15 @@ export class GameState {
   phase: TurnPhase;
   turnNumber: number;
   winnerId: string | null;
+  bank: ResourceInventory;
+  hasRolledDiceThisTurn: boolean;
+  hasPlayedDevelopmentCardThisTurn: boolean;
   private initialPlacementRound: 1 | 2 | 0;
   private initialPlacementStep: "settlement" | "road" | null;
   private initialPlacementCursor: number;
   private initialPlacementSettlementCount: Record<string, number>;
   private initialPlacementRoadCount: Record<string, number>;
+  private initialPlacementRoadAnchorVertexId: string | null;
   private actionLog: string[];
 
   constructor(board: Board, players: Player[] = []) {
@@ -65,11 +40,21 @@ export class GameState {
     this.phase = "initial-placement";
     this.turnNumber = 1;
     this.winnerId = null;
+    this.bank = {
+      brick: 19,
+      lumber: 19,
+      wool: 19,
+      grain: 19,
+      ore: 19,
+    };
+    this.hasRolledDiceThisTurn = false;
+    this.hasPlayedDevelopmentCardThisTurn = false;
     this.initialPlacementRound = 1;
     this.initialPlacementStep = "settlement";
     this.initialPlacementCursor = 0;
     this.initialPlacementSettlementCount = {};
     this.initialPlacementRoadCount = {};
+    this.initialPlacementRoadAnchorVertexId = null;
     this.actionLog = ["Partida iniciada."];
 
     this.players.forEach((player) => {
@@ -87,7 +72,7 @@ export class GameState {
   }
 
   addActionLog(message: string) {
-    this.actionLog = [message, ...this.actionLog].slice(0, 12);
+    this.actionLog = [message, ...this.actionLog].slice(0, 100);
   }
 
   getActionLog() {
@@ -127,7 +112,10 @@ export class GameState {
       return false;
     }
 
-    return (this.initialPlacementSettlementCount[player.id] ?? 0) < 2;
+    return (
+      (this.initialPlacementSettlementCount[player.id] ?? 0) < 2 &&
+      player.canBuildSettlementPiece()
+    );
   }
 
   canCurrentPlayerPlaceInitialRoad() {
@@ -141,10 +129,13 @@ export class GameState {
       return false;
     }
 
-    return (this.initialPlacementRoadCount[player.id] ?? 0) < 2;
+    return (
+      (this.initialPlacementRoadCount[player.id] ?? 0) < 2 &&
+      player.canBuildRoadPiece()
+    );
   }
 
-  registerInitialPlacementSettlement(playerId: string) {
+  registerInitialPlacementSettlement(playerId: string, vertexId: string) {
     if (
       !this.isInitialPlacementActive() ||
       this.initialPlacementStep !== "settlement"
@@ -158,7 +149,20 @@ export class GameState {
 
     this.initialPlacementSettlementCount[playerId] =
       (this.initialPlacementSettlementCount[playerId] ?? 0) + 1;
+    this.initialPlacementRoadAnchorVertexId = vertexId;
     this.initialPlacementStep = "road";
+  }
+
+  getInitialPlacementRoadAnchorVertexId(playerId: string) {
+    if (
+      !this.isInitialPlacementActive() ||
+      this.initialPlacementStep !== "road" ||
+      !this.isCurrentPlayer(playerId)
+    ) {
+      return null;
+    }
+
+    return this.initialPlacementRoadAnchorVertexId;
   }
 
   registerInitialPlacementRoad(playerId: string) {
@@ -175,13 +179,23 @@ export class GameState {
 
     this.initialPlacementRoadCount[playerId] =
       (this.initialPlacementRoadCount[playerId] ?? 0) + 1;
+    this.initialPlacementRoadAnchorVertexId = null;
 
     this.advanceInitialPlacementTurn();
   }
 
   rollDice() {
+    if (this.phase !== "roll-dice") {
+      throw new Error("Os dados só podem ser rolados no início do turno.");
+    }
+
+    if (this.hasRolledDiceThisTurn) {
+      throw new Error("Os dados já foram rolados neste turno.");
+    }
+
     const roll = this.rollDie() + this.rollDie();
 
+    this.hasRolledDiceThisTurn = true;
     this.phase = roll === 7 ? "discard" : "main-actions";
 
     return roll;
@@ -204,10 +218,15 @@ export class GameState {
     }
 
     this.phase = "roll-dice";
+    this.hasRolledDiceThisTurn = false;
+    this.hasPlayedDevelopmentCardThisTurn = false;
   }
 
   setWinner(playerId: string) {
     this.winnerId = playerId;
+
+    const winner = this.getPlayerById(playerId);
+    this.addActionLog(`${winner?.name ?? playerId} venceu a partida.`);
   }
 
   awardVictoryPoints(playerId: string, points: number) {
@@ -246,54 +265,157 @@ export class GameState {
     }
 
     player.spendResources(cost);
+    this.depositResourcesToBank(cost);
+  }
+
+  canBankAfford(resources: Partial<ResourceInventory>) {
+    return (Object.keys(resources) as ResourceType[]).every((resourceType) => {
+      const amount = resources[resourceType] ?? 0;
+
+      return this.bank[resourceType] >= amount;
+    });
+  }
+
+  withdrawResourcesFromBank(resources: Partial<ResourceInventory>) {
+    if (!this.canBankAfford(resources)) {
+      return false;
+    }
+
+    (Object.keys(resources) as ResourceType[]).forEach((resourceType) => {
+      this.bank[resourceType] -= resources[resourceType] ?? 0;
+    });
+
+    return true;
+  }
+
+  depositResourcesToBank(resources: Partial<ResourceInventory>) {
+    (Object.keys(resources) as ResourceType[]).forEach((resourceType) => {
+      this.bank[resourceType] += resources[resourceType] ?? 0;
+    });
+  }
+
+  exchangeWithBank(
+    playerId: string,
+    offeredResource: ResourceType,
+    requestedResource: ResourceType,
+    rate = 4,
+  ) {
+    if (offeredResource === requestedResource) {
+      throw new Error("Escolha recursos diferentes para trocar com o banco.");
+    }
+
+    if (!Number.isInteger(rate) || rate <= 0) {
+      throw new Error("A taxa de troca com o banco deve ser positiva.");
+    }
+
+    const player = this.getPlayerById(playerId);
+
+    if (player === undefined) {
+      throw new Error(`Player ${playerId} not found`);
+    }
+
+    const offeredResources: Partial<ResourceInventory> = {
+      [offeredResource]: rate,
+    };
+    const requestedResources: Partial<ResourceInventory> = {
+      [requestedResource]: 1,
+    };
+
+    if (!player.canAfford(offeredResources)) {
+      throw new Error("O jogador não possui recursos suficientes para a troca.");
+    }
+
+    if (!this.canBankAfford(requestedResources)) {
+      throw new Error("O banco não possui o recurso solicitado.");
+    }
+
+    if (!this.withdrawResourcesFromBank(requestedResources)) {
+      throw new Error("Falha ao retirar recurso do banco.");
+    }
+
+    player.spendResources(offeredResources);
+    this.depositResourcesToBank(offeredResources);
+    player.addResources(requestedResources);
   }
 
   canCurrentPlayerBuildRoad() {
-    return this.canCurrentPlayerAfford(CONSTRUCTION_COST.road);
+    return (
+      this.currentPlayer?.canBuildRoadPiece() === true &&
+      this.canCurrentPlayerAfford(ConstructionCost.road)
+    );
   }
 
   canCurrentPlayerBuildSettlement() {
-    return this.canCurrentPlayerAfford(CONSTRUCTION_COST.settlement);
+    return (
+      this.currentPlayer?.canBuildSettlementPiece() === true &&
+      this.canCurrentPlayerAfford(ConstructionCost.settlement)
+    );
   }
 
   canCurrentPlayerUpgradeSettlement() {
-    return this.canCurrentPlayerAfford(CONSTRUCTION_COST.city);
+    return (
+      this.currentPlayer?.canBuildCityPiece() === true &&
+      this.canCurrentPlayerAfford(ConstructionCost.city)
+    );
   }
 
   canCurrentPlayerBuyDevelopmentCard() {
-    return this.canCurrentPlayerAfford(CONSTRUCTION_COST.developmentCard);
+    return this.canCurrentPlayerAfford(ConstructionCost.developmentCard);
   }
 
   spendForRoad() {
-    this.spendCurrentPlayerResources(CONSTRUCTION_COST.road);
+    this.spendCurrentPlayerResources(ConstructionCost.road);
   }
 
   spendForSettlement() {
-    this.spendCurrentPlayerResources(CONSTRUCTION_COST.settlement);
+    this.spendCurrentPlayerResources(ConstructionCost.settlement);
   }
 
   spendForCity() {
-    this.spendCurrentPlayerResources(CONSTRUCTION_COST.city);
+    this.spendCurrentPlayerResources(ConstructionCost.city);
   }
 
   spendForDevelopmentCard() {
-    this.spendCurrentPlayerResources(CONSTRUCTION_COST.developmentCard);
+    this.spendCurrentPlayerResources(ConstructionCost.developmentCard);
+  }
+
+  canPlayDevelopmentCardThisTurn() {
+    return !this.hasPlayedDevelopmentCardThisTurn;
+  }
+
+  markDevelopmentCardPlayed() {
+    if (this.hasPlayedDevelopmentCardThisTurn) {
+      throw new Error("Uma carta de desenvolvimento já foi usada neste turno.");
+    }
+
+    this.hasPlayedDevelopmentCardThisTurn = true;
   }
 
   canTakeMainActions() {
     return this.phase === "main-actions";
   }
 
-  resolveSevenDiscard() {
+  resolveSevenDiscard(): SevenDiscardResult[] {
+    const discardResults: SevenDiscardResult[] = [];
+
     this.players.forEach((player) => {
       const totalResources = player.getTotalResources();
 
       if (totalResources > 7) {
-        player.discardResources(Math.floor(totalResources / 2));
+        const discardedResources = player.discardResources(
+          Math.floor(totalResources / 2),
+        );
+
+        this.depositResourcesToBank(discardedResources);
+        discardResults.push({
+          playerId: player.id,
+          discardedResources,
+        });
       }
     });
 
     this.phase = "robber";
+    return discardResults;
   }
 
   moveRobber(q: number, r: number): RobberyResult {
@@ -413,6 +535,8 @@ export class GameState {
       this.initialPlacementStep = null;
       this.phase = "roll-dice";
       this.currentPlayerIndex = 0;
+      this.hasRolledDiceThisTurn = false;
+      this.hasPlayedDevelopmentCardThisTurn = false;
     }
   }
 }

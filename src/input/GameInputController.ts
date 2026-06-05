@@ -3,6 +3,7 @@ import { ConstructionRules } from "../core/game/ConstructionRules";
 import { GameState } from "../core/game/GameState";
 import { ResourceDistributionService } from "../core/game/ResourceDistributionService";
 import { getResourceName } from "../core/game/ResourceNames";
+import type { ResourceInventory } from "../core/game/ResourceInventory";
 
 export type InputMode =
   | "idle"
@@ -18,6 +19,13 @@ export type BoardSelectionState = {
   hoveredTileKey: string | null;
 };
 
+function formatResourceList(resources: Partial<ResourceInventory>) {
+  return Object.entries(resources)
+    .filter(([, amount]) => amount > 0)
+    .map(([type, amount]) => `${amount}x ${getResourceName(type)}`)
+    .join(", ");
+}
+
 export class GameInputController {
   private mode: InputMode = "idle";
   private statusMessage =
@@ -27,7 +35,6 @@ export class GameInputController {
   private hoveredVertexId: string | null = null;
   private hoveredRoadId: string | null = null;
   private hoveredTileKey: string | null = null;
-  private initialPlacementLastSettlementVertexId: string | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -99,7 +106,16 @@ export class GameInputController {
     }
 
     const currentPlayer = this.gameState.getCurrentPlayer();
-    const roll = this.gameState.rollDice();
+    let roll: number;
+
+    try {
+      roll = this.gameState.rollDice();
+    } catch (error) {
+      this.statusMessage =
+        error instanceof Error ? error.message : "Falha ao rolar os dados.";
+      return;
+    }
+
     const distributions =
       this.resourceDistributionService.distributeForRoll(roll);
 
@@ -120,10 +136,7 @@ export class GameInputController {
           player !== undefined &&
           Object.keys(distribution.resources).length > 0
         ) {
-          const resourceList = Object.entries(distribution.resources)
-            .filter(([, amount]) => amount > 0)
-            .map(([type, amount]) => `${amount}x ${getResourceName(type)}`)
-            .join(", ");
+          const resourceList = formatResourceList(distribution.resources);
 
           if (resourceList) {
             this.gameState.addActionLog(
@@ -132,6 +145,10 @@ export class GameInputController {
           }
         }
       });
+    } else {
+      this.gameState.addActionLog(
+        "Nenhum jogador recebeu recursos nesta rolagem.",
+      );
     }
 
     this.statusMessage = `Saiu ${roll}. Você pode agir agora.`;
@@ -143,7 +160,25 @@ export class GameInputController {
       return;
     }
 
-    this.gameState.resolveSevenDiscard();
+    const discardResults = this.gameState.resolveSevenDiscard();
+
+    if (discardResults.length === 0) {
+      this.gameState.addActionLog(
+        "Nenhum jogador tinha mais de 7 recursos para descartar.",
+      );
+    } else {
+      discardResults.forEach((discardResult) => {
+        const player = this.gameState.getPlayerById(discardResult.playerId);
+        const resourceList = formatResourceList(
+          discardResult.discardedResources,
+        );
+
+        this.gameState.addActionLog(
+          `${player?.name ?? discardResult.playerId} descartou ${resourceList}.`,
+        );
+      });
+    }
+
     this.gameState.addActionLog("Descarte do 7 resolvido.");
     this.statusMessage = "Escolha um hexágono para mover o ladrão.";
     this.mode = "idle";
@@ -297,9 +332,11 @@ export class GameInputController {
           );
           const victimName = victim?.name ?? robbery.stolenFromPlayerId;
 
-          this.statusMessage = `Ladrão movido. Você roubou 1 ${robbery.resourceType} de ${victimName}.`;
+          const stolenResourceName = getResourceName(robbery.resourceType);
+
+          this.statusMessage = `Ladrão movido. Você roubou 1 ${stolenResourceName} de ${victimName}.`;
           this.gameState.addActionLog(
-            `${currentPlayer.name} moveu o ladrão e roubou 1 ${robbery.resourceType} de ${victimName}.`,
+            `${currentPlayer.name} moveu o ladrão e roubou 1 ${stolenResourceName} de ${victimName}.`,
           );
         } else {
           this.statusMessage =
@@ -341,9 +378,14 @@ export class GameInputController {
             return;
           }
 
+          const roadAnchorVertexId =
+            this.gameState.getInitialPlacementRoadAnchorVertexId(
+              currentPlayer.id,
+            );
+
           if (
-            this.initialPlacementLastSettlementVertexId !== null &&
-            !road.connectsVertex(this.initialPlacementLastSettlementVertexId)
+            roadAnchorVertexId === null ||
+            !road.connectsVertex(roadAnchorVertexId)
           ) {
             this.statusMessage =
               "A estrada inicial deve tocar a aldeia que você acabou de construir.";
@@ -360,7 +402,6 @@ export class GameInputController {
 
         if (isInitialPlacement) {
           this.gameState.registerInitialPlacementRoad(currentPlayer.id);
-          this.initialPlacementLastSettlementVertexId = null;
         }
 
         this.gameState.addActionLog(
@@ -368,6 +409,16 @@ export class GameInputController {
             ? `${currentPlayer.name} colocou uma estrada inicial.`
             : `${currentPlayer.name} construiu uma estrada.`,
         );
+
+        if (isInitialPlacement) {
+          const nextPlayer = this.gameState.getCurrentPlayer();
+
+          this.gameState.addActionLog(
+            this.gameState.isInitialPlacementActive()
+              ? `Próxima colocação inicial: ${nextPlayer?.name ?? "Jogador"} deve construir uma aldeia.`
+              : `Configuração inicial concluída. ${nextPlayer?.name ?? "Jogador"} começa rolando os dados.`,
+          );
+        }
 
         this.selectedRoadId = road.id;
         this.selectedVertexId = null;
@@ -411,21 +462,25 @@ export class GameInputController {
           isInitialPlacement,
         );
 
-        const grantedResources =
-          this.resourceDistributionService.grantResourcesForVertex(
-            vertex.id,
-            currentPlayer.id,
-          );
+        let grantedResources: string[] = [];
 
         if (isInitialPlacement) {
-          this.gameState.registerInitialPlacementSettlement(currentPlayer.id);
-          this.initialPlacementLastSettlementVertexId = vertex.id;
+          this.gameState.registerInitialPlacementSettlement(
+            currentPlayer.id,
+            vertex.id,
+          );
 
           if (
             this.gameState.getInitialPlacementSettlementCount(
               currentPlayer.id,
             ) === 2
           ) {
+            grantedResources =
+              this.resourceDistributionService.grantResourcesForVertex(
+                vertex.id,
+                currentPlayer.id,
+              );
+
             const translatedResources = grantedResources.map((r) =>
               getResourceName(r),
             );
@@ -437,14 +492,6 @@ export class GameInputController {
             settlementStatusMessage =
               "Aldeia inicial construída. Agora construa a estrada conectada a ela.";
           }
-        } else {
-          const translatedResources = grantedResources.map((r) =>
-            getResourceName(r),
-          );
-          settlementStatusMessage =
-            translatedResources.length > 0
-              ? `Aldeia construída. Você recebeu ${translatedResources.join(", ")}.`
-              : "Aldeia construída.";
         }
 
         this.gameState.addActionLog(
@@ -452,6 +499,12 @@ export class GameInputController {
             ? `${currentPlayer.name} colocou uma aldeia inicial.`
             : `${currentPlayer.name} construiu uma aldeia.`,
         );
+
+        if (isInitialPlacement) {
+          this.gameState.addActionLog(
+            `${currentPlayer.name} deve construir uma estrada inicial conectada à aldeia.`,
+          );
+        }
 
         if (grantedResources.length > 0) {
           const translatedResources = grantedResources.map((r) =>
