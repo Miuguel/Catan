@@ -16,6 +16,7 @@ interface TradeModalProps {
   onClose: () => void;
   currentPlayerName: string;
   otherPlayers: PlayerOption[];
+  bankRates?: Record<string, number>;
   onBankTrade: (
     offering: Record<string, number>,
     requesting: Record<string, number>,
@@ -49,6 +50,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({
   isOpen,
   onClose,
   otherPlayers,
+  bankRates,
   onBankTrade,
   onPlayerTrade,
 }) => {
@@ -157,6 +159,17 @@ export const TradeModal: React.FC<TradeModalProps> = ({
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'bank' && bankRates && (
+          <div style={{ padding: '8px 24px 0', color: '#cbd5e1', fontSize: 13 }}>
+            <strong>Suas taxas (oferecer : receber):</strong>{' '}
+            {RESOURCES.map((resource) => (
+              <span key={resource} style={{ marginRight: 10, whiteSpace: 'nowrap' }}>
+                {RESOURCE_ICONS[resource as keyof typeof RESOURCE_ICONS]} {bankRates[resource] ?? 4}:1
+              </span>
+            ))}
           </div>
         )}
 

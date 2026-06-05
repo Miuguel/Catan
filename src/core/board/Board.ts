@@ -1,4 +1,6 @@
 import { Hex } from "../Hex";
+import { createHarborTypes } from "./Harbor";
+import type { Harbor } from "./Harbor";
 import { Road } from "./Road";
 import { Settlement } from "./Settlement";
 import { Tile } from "./Tile";
@@ -45,6 +47,7 @@ export class Board {
   vertices: Vertex[];
   roads: Road[];
   settlements: Settlement[];
+  harbors: Harbor[];
 
   constructor(radius = 2, size = 50) {
     this.hexes = [];
@@ -52,9 +55,11 @@ export class Board {
     this.vertices = [];
     this.roads = [];
     this.settlements = [];
+    this.harbors = [];
     this.generateHexes(radius, size);
     this.generateTopology();
     this.generateTiles();
+    this.generateHarbors();
   }
 
   private generateHexes(radius: number, size: number) {
@@ -208,11 +213,96 @@ export class Board {
     });
   }
 
-  private getVertexKey(point: Point) {
-    const x = point.x.toFixed(2);
-    const y = point.y.toFixed(2);
+  private generateHarbors() {
+    // Conjunto de vértices (cantos) de cada hexágono.
+    const hexCornerSets = this.hexes.map(
+      (hex) =>
+        new Set(this.getHexCorners(hex).map((point) => this.getVertexKey(point))),
+    );
 
-    return `${x}:${y}`;
+    // Arestas costeiras: pertencem a apenas um hexágono.
+    const coastalRoads = this.roads.filter((road) => {
+      const hexCount = hexCornerSets.filter(
+        (corners) =>
+          corners.has(road.vertexAId) && corners.has(road.vertexBId),
+      ).length;
+
+      return hexCount === 1;
+    });
+
+    if (coastalRoads.length === 0) {
+      this.harbors = [];
+      return;
+    }
+
+    // Ordena as arestas costeiras ao redor do centro (0,0) do tabuleiro.
+    const roadAngle = (road: Road) => {
+      const vertexA = this.getVertex(road.vertexAId);
+      const vertexB = this.getVertex(road.vertexBId);
+
+      if (vertexA === undefined || vertexB === undefined) {
+        return 0;
+      }
+
+      return Math.atan2(
+        (vertexA.y + vertexB.y) / 2,
+        (vertexA.x + vertexB.x) / 2,
+      );
+    };
+
+    const sortedCoastal = [...coastalRoads].sort(
+      (a, b) => roadAngle(a) - roadAngle(b),
+    );
+
+    const harborTypes = this.shuffleArray(createHarborTypes());
+    const harborCount = Math.min(harborTypes.length, sortedCoastal.length);
+    const usedIndices = new Set<number>();
+    const harbors: Harbor[] = [];
+
+    for (let i = 0; i < harborCount; i += 1) {
+      let index = Math.round((i * sortedCoastal.length) / harborCount);
+
+      // Evita repetir a mesma aresta caso o arredondamento colida.
+      while (usedIndices.has(index % sortedCoastal.length)) {
+        index += 1;
+      }
+      index %= sortedCoastal.length;
+      usedIndices.add(index);
+
+      const road = sortedCoastal[index];
+      const type = harborTypes[i];
+
+      harbors.push({
+        type,
+        rate: type === "generic" ? 3 : 2,
+        vertexAId: road.vertexAId,
+        vertexBId: road.vertexBId,
+      });
+    }
+
+    this.harbors = harbors;
+  }
+
+  getPlayerHarbors(playerId: string): Harbor[] {
+    return this.harbors.filter((harbor) => {
+      const settlementA = this.getSettlementAtVertex(harbor.vertexAId);
+      const settlementB = this.getSettlementAtVertex(harbor.vertexBId);
+
+      return (
+        settlementA?.ownerId === playerId || settlementB?.ownerId === playerId
+      );
+    });
+  }
+
+  private getVertexKey(point: Point) {
+    // Normaliza "-0.00" para "0.00": x=+0 e x=-0 são o mesmo ponto e não
+    // podem virar vértices distintos (senão a topologia fica inválida).
+    const format = (value: number) => {
+      const rounded = value.toFixed(2);
+      return rounded === "-0.00" ? "0.00" : rounded;
+    };
+
+    return `${format(point.x)}:${format(point.y)}`;
   }
 
   private getRoadKey(vertexAId: string, vertexBId: string) {

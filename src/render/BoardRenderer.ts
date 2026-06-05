@@ -1,5 +1,7 @@
 import { Hex } from "../core/Hex";
 import { Board } from "../core/board/Board";
+import { getResourceColor } from "../core/game/ResourceNames";
+import { harborLabel } from "../core/board/Harbor";
 
 export type BoardRenderState = {
   mode?: string | null;
@@ -260,6 +262,72 @@ export class BoardRenderer {
     }
   }
 
+  private drawHarbors() {
+    const offsetX = this.ctx.canvas.width / 2;
+    const offsetY = this.ctx.canvas.height / 2;
+
+    this.board.harbors.forEach((harbor) => {
+      const vertexA = this.board.getVertex(harbor.vertexAId);
+      const vertexB = this.board.getVertex(harbor.vertexBId);
+
+      if (vertexA === undefined || vertexB === undefined) {
+        return;
+      }
+
+      const midX = (vertexA.x + vertexB.x) / 2;
+      const midY = (vertexA.y + vertexB.y) / 2;
+      const length = Math.hypot(midX, midY) || 1;
+      const push = 32;
+      const labelX = midX + (midX / length) * push + offsetX;
+      const labelY = midY + (midY / length) * push + offsetY;
+
+      // Linha do "cais" ligando a aresta costeira ao rótulo do porto.
+      this.ctx.beginPath();
+      this.ctx.moveTo(midX + offsetX, midY + offsetY);
+      this.ctx.lineTo(labelX, labelY);
+      this.ctx.strokeStyle = "rgba(226, 232, 240, 0.55)";
+      this.ctx.lineWidth = 2;
+      this.ctx.setLineDash([3, 3]);
+      this.ctx.stroke();
+      this.ctx.setLineDash([]);
+
+      const accent =
+        harbor.type === "generic"
+          ? "#e2e8f0"
+          : getResourceColor(harbor.type);
+
+      this.ctx.beginPath();
+      this.ctx.arc(labelX, labelY, 16, 0, Math.PI * 2);
+      this.ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+      this.ctx.fill();
+      this.ctx.strokeStyle = accent;
+      this.ctx.lineWidth = 3;
+      this.ctx.stroke();
+
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = "bold 11px sans-serif";
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.fillText(harborLabel(harbor), labelX, labelY);
+
+      // Ícone do recurso (portos específicos 2:1) para evitar ambiguidade.
+      if (harbor.type !== "generic") {
+        const icon = this.resourceIcons[harbor.type];
+
+        if (icon?.complete && icon.naturalWidth > 0) {
+          const iconSize = 18;
+          this.ctx.drawImage(
+            icon,
+            labelX - iconSize / 2,
+            labelY - 16 - iconSize,
+            iconSize,
+            iconSize,
+          );
+        }
+      }
+    });
+  }
+
   private drawRobber() {
     const robberTile = this.board.tiles.find((tile) => tile.hasRobber);
 
@@ -300,6 +368,8 @@ export class BoardRenderer {
     this.board.hexes.forEach((hex) => {
       this.drawHex(hex, state);
     });
+
+    this.drawHarbors();
 
     this.board.roads.forEach((road) =>
       this.drawRoad(

@@ -550,28 +550,36 @@ export class BotController {
       return false;
     }
 
+    // Usa a melhor taxa disponível (porto específico, genérico ou 4:1).
     const offeredResource = RESOURCE_TYPES.find(
       (resourceType) =>
         resourceType !== targetCost.missingResource &&
-        currentPlayer.resources[resourceType] >= 4,
+        currentPlayer.resources[resourceType] >=
+          this.gameState.getBankTradeRate(currentPlayer.id, resourceType),
     );
 
     if (offeredResource === undefined) {
       return false;
     }
 
+    const rate = this.gameState.getBankTradeRate(
+      currentPlayer.id,
+      offeredResource,
+    );
+
     try {
       this.gameState.exchangeWithBank(
         currentPlayer.id,
         offeredResource,
         targetCost.missingResource,
+        rate,
       );
     } catch {
       return false;
     }
 
     this.gameState.addActionLog(
-      `${currentPlayer.name} trocou 4 ${getResourceName(
+      `${currentPlayer.name} trocou ${rate} ${getResourceName(
         offeredResource,
       )} por 1 ${getResourceName(targetCost.missingResource)} com o banco.`,
     );

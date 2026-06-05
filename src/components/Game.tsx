@@ -163,6 +163,9 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
   const [currentPlayerName, setCurrentPlayerName] = useState('');
   const [otherPlayers, setOtherPlayers] = useState<Array<{name: string; avatarSrc: string}>>([
   ]);
+  const [bankRates, setBankRates] = useState<Record<string, number>>({
+    Tijolo: 4, Madeira: 4, "Lã": 4, Trigo: 4, "Minério": 4,
+  });
   const [isRollingDice, setIsRollingDice] = useState(false);
   const [diceResult, setDiceResult] = useState<DiceRollResult | null>(null);
   const inputControllerRef = useRef<GameInputController | null>(null);
@@ -734,6 +737,15 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
           avatarSrc: avatarMap[p.id] || '/avatar-placeholder.png'
         }));
       setOtherPlayers(others);
+
+      const rates = gameState.getBankTradeRates(current.id);
+      const ratesByLabel: Record<string, number> = {};
+      (Object.entries(TRADE_LABEL_TO_RESOURCE) as Array<[string, ResourceType]>)
+        .forEach(([label, resourceType]) => {
+          ratesByLabel[label] = rates[resourceType];
+        });
+      setBankRates(ratesByLabel);
+
       setIsTradeModalOpen(true);
     };
 
@@ -1093,6 +1105,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         onClose={() => setIsTradeModalOpen(false)}
         currentPlayerName={currentPlayerName}
         otherPlayers={otherPlayers}
+        bankRates={bankRates}
         onBankTrade={handleBankTrade}
         onPlayerTrade={handlePlayerTrade}
       />
