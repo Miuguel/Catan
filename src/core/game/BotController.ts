@@ -213,11 +213,13 @@ export class BotController {
 
   private rollDice(currentPlayer: Player) {
     const roll = this.gameState.rollDice();
-    const distributions = this.resourceDistributionService.distributeForRoll(roll);
+    const distributions = this.resourceDistributionService.distributeForRoll(
+      roll.total,
+    );
 
-    this.gameState.addActionLog(`${currentPlayer.name} rolou ${roll}.`);
+    this.gameState.addActionLog(`${currentPlayer.name} rolou ${roll.total}.`);
 
-    if (roll === 7) {
+    if (roll.total === 7) {
       this.gameState.addActionLog(
         `${currentPlayer.name} ativou o ladrão com o resultado 7.`,
       );
