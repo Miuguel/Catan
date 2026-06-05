@@ -36,8 +36,12 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   useEffect(() => {
     if (isRolling) {
       clearAll();
-      setVisible(true);
       setShowTotal(false);
+
+      // Mostrar o roller e depois fazer a sequência de timeouts
+      const t0 = setTimeout(() => {
+        setVisible(true);
+      }, 0);
 
       // Após a animação de rolagem terminar, mostrar o total
       const t1 = setTimeout(() => {
@@ -55,11 +59,11 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
         timeoutsRef.current.push(t2, t3);
       }, ROLL_DURATION_MS);
 
-      timeoutsRef.current.push(t1);
+      timeoutsRef.current.push(t0, t1);
 
       return () => clearAll();
     }
-  }, [isRolling]);
+  }, [isRolling, onRollingComplete]);
 
   if (!visible) return null;
 

@@ -55,7 +55,6 @@ export const Dice: React.FC<DiceProps> = ({ finalValue, isRolling }) => {
   useEffect(() => {
     if (isRolling) {
       stopAnimation();
-      setPhase('rolling');
 
       let frameIndex = 0;
       let lastFrameSwap = 0;
@@ -64,6 +63,9 @@ export const Dice: React.FC<DiceProps> = ({ finalValue, isRolling }) => {
       const totalDuration = 1000;
 
       const animate = (timestamp: number) => {
+        if (prevTimestamp === 0) {
+          setPhase('rolling');
+        }
         if (!prevTimestamp) prevTimestamp = timestamp;
         const delta = timestamp - prevTimestamp;
         prevTimestamp = timestamp;
@@ -115,7 +117,10 @@ export const Dice: React.FC<DiceProps> = ({ finalValue, isRolling }) => {
 
   useEffect(() => {
     if (!isRolling && phase === 'idle') {
-      setCurrentFrame(FACE_FRAMES[finalValue] ?? FACE_FRAMES[1]);
+      const timeoutId = setTimeout(() => {
+        setCurrentFrame(FACE_FRAMES[finalValue] ?? FACE_FRAMES[1]);
+      }, 0);
+      return () => clearTimeout(timeoutId);
     }
   }, [finalValue, isRolling, phase]);
 
