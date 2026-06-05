@@ -19,6 +19,12 @@ export type BoardSelectionState = {
   hoveredTileKey: string | null;
 };
 
+export type DiceRollResult = {
+  die1: number;
+  die2: number;
+  total: number;
+};
+
 function formatResourceList(resources: Partial<ResourceInventory>) {
   return Object.entries(resources)
     .filter(([, amount]) => amount > 0)
@@ -35,6 +41,8 @@ export class GameInputController {
   private hoveredVertexId: string | null = null;
   private hoveredRoadId: string | null = null;
   private hoveredTileKey: string | null = null;
+  private initialPlacementLastSettlementVertexId: string | null = null;
+  private onDiceRoll: ((result: DiceRollResult) => void) | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -46,6 +54,10 @@ export class GameInputController {
     this.canvas.addEventListener("click", this.handleCanvasClick);
     this.canvas.addEventListener("mousemove", this.handleCanvasMove);
     this.canvas.addEventListener("mouseleave", this.clearHoverState);
+  }
+
+  setOnDiceRoll(callback: (result: DiceRollResult) => void) {
+    this.onDiceRoll = callback;
   }
 
   dispose() {
@@ -106,10 +118,11 @@ export class GameInputController {
     }
 
     const currentPlayer = this.gameState.getCurrentPlayer();
-    let roll: number;
+
+    let diceResult: DiceRollResult;
 
     try {
-      roll = this.gameState.rollDice();
+      diceResult = this.gameState.rollDice();
     } catch (error) {
       this.statusMessage =
         error instanceof Error ? error.message : "Falha ao rolar os dados.";
@@ -117,13 +130,16 @@ export class GameInputController {
     }
 
     const distributions =
-      this.resourceDistributionService.distributeForRoll(roll);
+      this.resourceDistributionService.distributeForRoll(diceResult.total);
+
+    // Callback para animar os dados na UI
+    this.onDiceRoll?.(diceResult);
 
     this.gameState.addActionLog(
-      `${currentPlayer?.name ?? "Jogador"} rolou ${roll}.`,
+      `${currentPlayer?.name ?? "Jogador"} rolou ${diceResult.total}.`,
     );
 
-    if (roll === 7) {
+    if (diceResult.total === 7) {
       this.statusMessage = "Saiu 7. Resolva o descarte e depois mova o ladrão.";
       this.mode = "idle";
       return;
@@ -151,7 +167,7 @@ export class GameInputController {
       );
     }
 
-    this.statusMessage = `Saiu ${roll}. Você pode agir agora.`;
+    this.statusMessage = `Saiu ${diceResult.total}. Você pode agir agora.`;
   }
 
   resolveDiscard() {

@@ -193,12 +193,14 @@ export class GameState {
       throw new Error("Os dados já foram rolados neste turno.");
     }
 
-    const roll = this.rollDie() + this.rollDie();
+    const die1 = this.rollDie();
+    const die2 = this.rollDie();
+    const total = die1 + die2;
 
     this.hasRolledDiceThisTurn = true;
-    this.phase = roll === 7 ? "discard" : "main-actions";
+    this.phase = total === 7 ? "discard" : "main-actions";
 
-    return roll;
+    return { die1, die2, total };
   }
 
   private rollDie() {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import type { FC } from "react";
 import "../styles/game.css";
 import { Board } from "../core/board/Board";
@@ -12,9 +12,10 @@ import type { ResourceInventory } from "../core/game/ResourceInventory";
 import type { ResourceType } from "../core/game/ResourceType";
 import { shouldBotAcceptTrade } from "../core/game/TradeService";
 import { BoardRenderer } from "../render/BoardRenderer";
-import { GameInputController } from "../input/GameInputController";
+import { GameInputController, type DiceRollResult } from "../input/GameInputController";
 import { TradeModal } from "./TradeModal";
 import type { TradeResult } from "./TradeModal";
+import { DiceRoller } from "./DiceRoller";
 
 interface PlayerConfig {
   name: string;
@@ -136,7 +137,11 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
   } | null>(null);
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
   const [currentPlayerName, setCurrentPlayerName] = useState('');
-  const [otherPlayers, setOtherPlayers] = useState<Array<{name: string; avatarSrc: string}>>([]);
+  const [otherPlayers, setOtherPlayers] = useState<Array<{name: string; avatarSrc: string}>>([
+  ]);
+  const [isRollingDice, setIsRollingDice] = useState(false);
+  const [diceResult, setDiceResult] = useState<DiceRollResult | null>(null);
+  const inputControllerRef = useRef<GameInputController | null>(null);
 
   const handleBankTrade = (
     offering: Record<string, number>,
@@ -296,6 +301,13 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       constructionRules,
       resourceDistributionService,
     );
+
+    inputController.setOnDiceRoll((result: DiceRollResult) => {
+      setIsRollingDice(true);
+      setDiceResult(result);
+    });
+
+    inputControllerRef.current = inputController;
 
     const hud = document.createElement("div");
     hud.className = "game-ui";
@@ -723,9 +735,22 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     };
   }, [players, onBack]);
 
+  const handleDiceRollingComplete = () => {
+    setIsRollingDice(false);
+  };
+
   return (
     <>
       <canvas id="game" ref={canvasRef} />
+      {diceResult && (
+        <DiceRoller
+          isRolling={isRollingDice}
+          die1={diceResult.die1}
+          die2={diceResult.die2}
+          total={diceResult.total}
+          onRollingComplete={handleDiceRollingComplete}
+        />
+      )}
       <TradeModal
         key={isTradeModalOpen ? "trade-open" : "trade-closed"}
         isOpen={isTradeModalOpen}
@@ -736,7 +761,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         onPlayerTrade={handlePlayerTrade}
       />
     </>
-  );
+  )
 };
 
 export default Game;
