@@ -305,10 +305,19 @@ export class GameInputController {
     }
 
     const { x, y, offsetX, offsetY } = position;
+
+    if (this.gameState.isFinished()) {
+      return;
+    }
+
     const currentPlayer = this.gameState.getCurrentPlayer();
 
     if (currentPlayer === undefined) {
       this.statusMessage = "Nenhum jogador ativo.";
+      return;
+    }
+
+    if (currentPlayer.kind === "bot") {
       return;
     }
 

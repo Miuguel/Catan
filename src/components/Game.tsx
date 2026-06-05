@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FC } from "react";
 import "../styles/game.css";
 import { Board } from "../core/board/Board";
+import { BotController } from "../core/game/BotController";
 import { ConstructionRules } from "../core/game/ConstructionRules";
 import { GameState } from "../core/game/GameState";
 import { Player } from "../core/game/Player";
@@ -129,6 +130,12 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     const gameState = new GameState(board, gamePlayers);
     const constructionRules = new ConstructionRules(board, gameState);
     const resourceDistributionService = new ResourceDistributionService(gameState);
+    const botController = new BotController(
+      board,
+      gameState,
+      constructionRules,
+      resourceDistributionService,
+    );
     const inputController = new GameInputController(
       canvas,
       board,
@@ -407,6 +414,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       const winner = gameState.getWinner();
       const isInitialPlacement = gameState.isInitialPlacementActive();
       const initialStep = gameState.getInitialPlacementStep();
+      const isBotTurn = currentPlayer?.kind === "bot";
 
       hudRefs.phaseBadge.textContent = isInitialPlacement
         ? `setup · ${initialStep ?? "-"}`
@@ -446,7 +454,9 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         : "-";
       hudRefs.statusText.textContent = winner
         ? `${winner.name} venceu a partida!`
-        : inputController.getStatusMessage();
+        : isBotTurn
+          ? `${currentPlayer.name} está jogando automaticamente.`
+          : inputController.getStatusMessage();
       hudRefs.gameLogList.replaceChildren(
         ...gameState.getActionLog().map((action) => {
           const item = document.createElement("div");
@@ -487,26 +497,42 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       }).join("");
 
       const gameOver = gameState.isFinished();
-      hudRefs.rollButton.disabled = gameOver || gameState.phase !== "roll-dice";
+      hudRefs.rollButton.disabled =
+        gameOver || isBotTurn || gameState.phase !== "roll-dice";
       hudRefs.settlementButton.disabled = isInitialPlacement
         ? initialStep !== "settlement" ||
-          !gameState.canCurrentPlayerPlaceInitialSettlement()
+          !gameState.canCurrentPlayerPlaceInitialSettlement() ||
+          isBotTurn
         : gameOver ||
+          isBotTurn ||
           gameState.phase !== "main-actions" ||
           !gameState.canCurrentPlayerBuildSettlement();
       hudRefs.roadButton.disabled = isInitialPlacement
-        ? initialStep !== "road" || !gameState.canCurrentPlayerPlaceInitialRoad()
+        ? initialStep !== "road" ||
+          !gameState.canCurrentPlayerPlaceInitialRoad() ||
+          isBotTurn
         : gameOver ||
+          isBotTurn ||
           gameState.phase !== "main-actions" ||
           !gameState.canCurrentPlayerBuildRoad();
       hudRefs.cityButton.disabled =
         gameOver ||
+        isBotTurn ||
         isInitialPlacement ||
         gameState.phase !== "main-actions" ||
         !gameState.canCurrentPlayerUpgradeSettlement();
-      hudRefs.discardButton.disabled = gameOver || gameState.phase !== "discard";
-      hudRefs.passButton.disabled = gameOver || isInitialPlacement || gameState.phase !== "main-actions";
-      hudRefs.tradeButton.disabled = gameOver || isInitialPlacement || gameState.phase !== "main-actions";
+      hudRefs.discardButton.disabled =
+        gameOver || isBotTurn || gameState.phase !== "discard";
+      hudRefs.passButton.disabled =
+        gameOver ||
+        isBotTurn ||
+        isInitialPlacement ||
+        gameState.phase !== "main-actions";
+      hudRefs.tradeButton.disabled =
+        gameOver ||
+        isBotTurn ||
+        isInitialPlacement ||
+        gameState.phase !== "main-actions";
     }
 
     let animationId = 0;
@@ -519,6 +545,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       // 2. Tabuleiro
       boardRenderer.render(inputController.getRenderState());
 
+      botController.tick();
       renderHud();
       animationId = requestAnimationFrame(gameLoop);
     }
@@ -535,6 +562,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       hudRefs.discardButton.removeEventListener("click", handleDiscard);
       hudRefs.passButton.removeEventListener("click", handlePass);
       hudRefs.tradeButton.removeEventListener("click", handleTrade);
+      botController.dispose();
       inputController.dispose();
       hud.remove();
       gameInitialized.current = false;
