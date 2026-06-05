@@ -74,12 +74,6 @@ export const TradeModal: React.FC<TradeModalProps> = ({
   };
 
   const handleSubmit = () => {
-    console.log('Trade submitted:', {
-      type: activeTab,
-      partner: activeTab === 'player' ? selectedPlayer : 'Banco',
-      offering,
-      requesting
-    });
     onClose();
   };
 

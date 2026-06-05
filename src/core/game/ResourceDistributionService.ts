@@ -1,10 +1,19 @@
 import { Tile } from "../board/Tile";
+import type { TileType } from "../board/Tile";
 import { GameState } from "./GameState";
+import { getResourceName } from "./ResourceNames";
 import type { ResourceInventory } from "./ResourceInventory";
+import type { ResourceType } from "./ResourceType";
 
 export type ResourceDistribution = {
   playerId: string;
   resources: Partial<ResourceInventory>;
+};
+
+type PendingResourceDistribution = {
+  playerId: string;
+  resourceType: ResourceType;
+  amount: number;
 };
 
 export class ResourceDistributionService {
@@ -17,12 +26,12 @@ export class ResourceDistributionService {
       return [];
     }
 
-    const grantedResources: string[] = [];
+    const grantedResources: ResourceType[] = [];
 
     this.gameState.board.tiles.forEach((tile) => {
       const resourceType = tile.type;
 
-      if (resourceType === "desert" || tile.hasRobber) {
+      if (!this.isResourceTile(resourceType) || tile.hasRobber) {
         return;
       }
 
@@ -30,8 +39,10 @@ export class ResourceDistributionService {
         return;
       }
 
-      player.addResource(resourceType, 1);
-      grantedResources.push(resourceType);
+      if (this.gameState.withdrawResourcesFromBank({ [resourceType]: 1 })) {
+        player.addResource(resourceType, 1);
+        grantedResources.push(resourceType);
+      }
     });
 
     return grantedResources;
@@ -45,23 +56,41 @@ export class ResourceDistributionService {
       return distributions;
     }
 
-    this.gameState.board.tiles
+    const pendingDistributions = this.gameState.board.tiles
       .filter((tile) => tile.numberToken === roll && !tile.hasRobber)
-      .forEach((tile) => this.distributeFromTile(tile, distributions));
+      .flatMap((tile) => this.getPendingDistributionsFromTile(tile));
+
+    const blockedResourceTypes =
+      this.getBlockedResourceTypes(pendingDistributions);
+
+    blockedResourceTypes.forEach((resourceType) => {
+      this.gameState.addActionLog(
+        `Banco sem ${getResourceName(resourceType)} suficiente; ninguém recebeu esse recurso.`,
+      );
+    });
+
+    this.applyPendingDistributions(
+      pendingDistributions.filter(
+        (distribution) =>
+          !blockedResourceTypes.includes(distribution.resourceType),
+      ),
+      distributions,
+    );
 
     this.gameState.setPhase("main-actions");
     return distributions;
   }
 
-  private distributeFromTile(
+  private getPendingDistributionsFromTile(
     tile: Tile,
-    distributions: ResourceDistribution[],
-  ) {
+  ): PendingResourceDistribution[] {
     const resourceType = tile.type;
 
-    if (resourceType === "desert") {
-      return;
+    if (!this.isResourceTile(resourceType)) {
+      return [];
     }
+
+    const pendingDistributions: PendingResourceDistribution[] = [];
 
     tile.vertexIds.forEach((vertexId) => {
       const settlement = this.gameState.board.getSettlementAtVertex(vertexId);
@@ -77,23 +106,83 @@ export class ResourceDistributionService {
       }
 
       const amount = settlement.level === "city" ? 2 : 1;
-      const reward: Partial<ResourceInventory> = {};
 
-      reward[resourceType] = amount;
-      player.addResources(reward);
-
-      const existing = distributions.find(
-        (d) => d.playerId === settlement.ownerId,
-      );
-      if (existing) {
-        existing.resources[resourceType] =
-          (existing.resources[resourceType] ?? 0) + amount;
-      } else {
-        distributions.push({
-          playerId: settlement.ownerId,
-          resources: reward,
-        });
-      }
+      pendingDistributions.push({
+        playerId: player.id,
+        resourceType,
+        amount,
+      });
     });
+
+    return pendingDistributions;
+  }
+
+  private getBlockedResourceTypes(
+    pendingDistributions: PendingResourceDistribution[],
+  ) {
+    const demandByResource = pendingDistributions.reduce(
+      (demand, distribution) => {
+        demand[distribution.resourceType] =
+          (demand[distribution.resourceType] ?? 0) + distribution.amount;
+
+        return demand;
+      },
+      {} as Partial<ResourceInventory>,
+    );
+
+    return (Object.keys(demandByResource) as ResourceType[]).filter(
+      (resourceType) =>
+        !this.gameState.canBankAfford({
+          [resourceType]: demandByResource[resourceType] ?? 0,
+        }),
+    );
+  }
+
+  private applyPendingDistributions(
+    pendingDistributions: PendingResourceDistribution[],
+    distributions: ResourceDistribution[],
+  ) {
+    pendingDistributions.forEach(({ playerId, resourceType, amount }) => {
+      const player = this.gameState.getPlayerById(playerId);
+
+      if (player === undefined) {
+        return;
+      }
+
+      if (
+        !this.gameState.withdrawResourcesFromBank({ [resourceType]: amount })
+      ) {
+        return;
+      }
+
+      player.addResource(resourceType, amount);
+      this.addDistribution(distributions, playerId, resourceType, amount);
+    });
+  }
+
+  private addDistribution(
+    distributions: ResourceDistribution[],
+    playerId: string,
+    resourceType: ResourceType,
+    amount: number,
+  ) {
+    const existing = distributions.find((d) => d.playerId === playerId);
+
+    if (existing) {
+      existing.resources[resourceType] =
+        (existing.resources[resourceType] ?? 0) + amount;
+      return;
+    }
+
+    distributions.push({
+      playerId,
+      resources: {
+        [resourceType]: amount,
+      },
+    });
+  }
+
+  private isResourceTile(tileType: TileType): tileType is ResourceType {
+    return tileType !== "desert";
   }
 }

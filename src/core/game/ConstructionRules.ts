@@ -1,23 +1,7 @@
 import { Board } from "../board/Board";
 import { Settlement } from "../board/Settlement";
+import { ConstructionCost } from "./ConstructionCost";
 import { GameState } from "./GameState";
-
-const CONSTRUCTION_COST = {
-  road: {
-    brick: 1,
-    lumber: 1,
-  },
-  settlement: {
-    brick: 1,
-    lumber: 1,
-    wool: 1,
-    grain: 1,
-  },
-  city: {
-    grain: 2,
-    ore: 3,
-  },
-} as const;
 
 export class ConstructionRules {
   constructor(
@@ -30,13 +14,26 @@ export class ConstructionRules {
     playerId: string,
     isInitialPlacement = false,
   ) {
-    if (!isInitialPlacement && !this.gameState.isCurrentPlayer(playerId)) {
+    const player = this.gameState.getPlayerById(playerId);
+
+    if (player === undefined || !player.canBuildSettlementPiece()) {
+      return false;
+    }
+
+    if (!this.gameState.isCurrentPlayer(playerId)) {
+      return false;
+    }
+
+    if (
+      isInitialPlacement &&
+      !this.gameState.canCurrentPlayerPlaceInitialSettlement()
+    ) {
       return false;
     }
 
     if (
       !isInitialPlacement &&
-      !this.gameState.canCurrentPlayerAfford(CONSTRUCTION_COST.settlement)
+      !this.gameState.canCurrentPlayerAfford(ConstructionCost.settlement)
     ) {
       return false;
     }
@@ -75,11 +72,17 @@ export class ConstructionRules {
   }
 
   canUpgradeSettlement(vertexId: string, playerId: string) {
+    const player = this.gameState.getPlayerById(playerId);
+
+    if (player === undefined || !player.canBuildCityPiece()) {
+      return false;
+    }
+
     if (!this.gameState.isCurrentPlayer(playerId)) {
       return false;
     }
 
-    if (!this.gameState.canCurrentPlayerAfford(CONSTRUCTION_COST.city)) {
+    if (!this.gameState.canCurrentPlayerAfford(ConstructionCost.city)) {
       return false;
     }
 
@@ -102,13 +105,19 @@ export class ConstructionRules {
     playerId: string,
     isInitialPlacement = false,
   ) {
-    if (!isInitialPlacement && !this.gameState.isCurrentPlayer(playerId)) {
+    const player = this.gameState.getPlayerById(playerId);
+
+    if (player === undefined || !player.canBuildRoadPiece()) {
+      return false;
+    }
+
+    if (!this.gameState.isCurrentPlayer(playerId)) {
       return false;
     }
 
     if (
       !isInitialPlacement &&
-      !this.gameState.canCurrentPlayerAfford(CONSTRUCTION_COST.road)
+      !this.gameState.canCurrentPlayerAfford(ConstructionCost.road)
     ) {
       return false;
     }
@@ -124,30 +133,17 @@ export class ConstructionRules {
     }
 
     if (isInitialPlacement) {
-      return true;
+      const roadAnchorVertexId =
+        this.gameState.getInitialPlacementRoadAnchorVertexId(playerId);
+
+      return (
+        roadAnchorVertexId !== null && road.connectsVertex(roadAnchorVertexId)
+      );
     }
 
     const canBuild =
-      this.board.isVertexConnectedToPlayer(vertexAId, playerId) ||
-      this.board.isVertexConnectedToPlayer(vertexBId, playerId);
-
-    if (!canBuild) {
-      console.debug(
-        `Road between ${vertexAId} and ${vertexBId} not buildable for player ${playerId}`,
-        {
-          vertexA_connected: this.board.isVertexConnectedToPlayer(
-            vertexAId,
-            playerId,
-          ),
-          vertexB_connected: this.board.isVertexConnectedToPlayer(
-            vertexBId,
-            playerId,
-          ),
-          vertexA_settlement: this.board.getSettlementAtVertex(vertexAId),
-          vertexB_settlement: this.board.getSettlementAtVertex(vertexBId),
-        },
-      );
-    }
+      this.canExtendRoadFromVertex(vertexAId, playerId) ||
+      this.canExtendRoadFromVertex(vertexBId, playerId);
 
     return canBuild;
   }
@@ -166,12 +162,12 @@ export class ConstructionRules {
       playerId,
       vertexId,
     );
-    this.board.placeSettlement(settlement);
-
     if (!isInitialPlacement) {
       this.gameState.spendForSettlement();
     }
 
+    this.gameState.getPlayerById(playerId)?.consumeSettlementPiece();
+    this.board.placeSettlement(settlement);
     this.gameState.awardVictoryPoints(playerId, 1);
 
     return settlement;
@@ -195,11 +191,12 @@ export class ConstructionRules {
       throw new Error("Road not found between the selected vertices");
     }
 
-    road.ownerId = playerId;
-
     if (!isInitialPlacement) {
       this.gameState.spendForRoad();
     }
+
+    this.gameState.getPlayerById(playerId)?.consumeRoadPiece();
+    road.ownerId = playerId;
 
     return road;
   }
@@ -215,11 +212,22 @@ export class ConstructionRules {
       throw new Error("Settlement not found at the selected vertex");
     }
 
-    settlement.upgradeToCity();
-
     this.gameState.spendForCity();
+    this.gameState.getPlayerById(playerId)?.consumeCityPiece();
+    this.gameState.getPlayerById(playerId)?.releaseSettlementPiece();
+    settlement.upgradeToCity();
     this.gameState.awardVictoryPoints(playerId, 1);
 
     return settlement;
+  }
+
+  private canExtendRoadFromVertex(vertexId: string, playerId: string) {
+    const settlement = this.board.getSettlementAtVertex(vertexId);
+
+    if (settlement !== undefined && settlement.ownerId !== playerId) {
+      return false;
+    }
+
+    return this.board.isVertexConnectedToPlayer(vertexId, playerId);
   }
 }
