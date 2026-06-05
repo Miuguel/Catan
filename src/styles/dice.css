@@ -1,0 +1,50 @@
+.dice-sprite {
+  width: 125px;
+  height: 125px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.5));
+}
+
+.dice-sprite__img {
+  width: 125px;
+  height: 125px;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+}
+
+.dice-sprite--rolling .dice-sprite__img {
+  animation: diceWobble 0.14s ease-in-out infinite alternate;
+}
+
+@keyframes diceWobble {
+  0%   { transform: rotate(-3deg) scale(1.01); }
+  100% { transform: rotate(3deg) scale(0.99); }
+}
+
+.dice-sprite--landing {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dice-sprite--landing .dice-sprite__img {
+  animation: diceSettle 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes diceSettle {
+  0%   { transform: scale(1.1) rotate(5deg); }
+  40%  { transform: scale(0.95) rotate(-2deg); }
+  70%  { transform: scale(1.02) rotate(1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.dice-sprite--idle {
+  transition: none;
+}
+
+.dice-sprite--idle .dice-sprite__img {
+  animation: none;
+  transform: scale(1) rotate(0deg);
+}
