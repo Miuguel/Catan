@@ -244,26 +244,20 @@ export class BotController {
   }
 
   private resolveDiscard() {
-    const discardResults = this.gameState.resolveSevenDiscard();
+    // Descarta automaticamente apenas os bots; humanos escolhem no modal.
+    const discardResults = this.gameState.autoDiscardBots();
 
-    if (discardResults.length === 0) {
+    discardResults.forEach((discardResult) => {
+      const player = this.gameState.getPlayerById(discardResult.playerId);
+      const resourceList = formatResourceList(discardResult.discardedResources);
+
       this.gameState.addActionLog(
-        "Nenhum jogador tinha mais de 7 recursos para descartar.",
+        `${player?.name ?? discardResult.playerId} descartou ${resourceList}.`,
       );
-    } else {
-      discardResults.forEach((discardResult) => {
-        const player = this.gameState.getPlayerById(discardResult.playerId);
-        const resourceList = formatResourceList(
-          discardResult.discardedResources,
-        );
+    });
 
-        this.gameState.addActionLog(
-          `${player?.name ?? discardResult.playerId} descartou ${resourceList}.`,
-        );
-      });
-    }
-
-    this.gameState.addActionLog("Descarte do 7 resolvido automaticamente.");
+    this.gameState.finalizeDiscardPhaseIfReady();
+    // Se ainda houver humano para descartar, o bot aguarda (modal do humano).
   }
 
   private moveRobber(currentPlayer: Player) {
@@ -298,7 +292,7 @@ export class BotController {
       return;
     }
 
-    const robbery = this.gameState.moveRobber(targetTile.q, targetTile.r);
+    const robbery = this.gameState.moveRobberAuto(targetTile.q, targetTile.r);
 
     if (robbery.stolenFromPlayerId !== null && robbery.resourceType !== null) {
       const victim = this.gameState.getPlayerById(robbery.stolenFromPlayerId);

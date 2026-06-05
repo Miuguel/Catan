@@ -43,6 +43,7 @@ export class GameInputController {
   private hoveredTileKey: string | null = null;
   private initialPlacementLastSettlementVertexId: string | null = null;
   private onDiceRoll: ((result: DiceRollResult) => void) | null = null;
+  private onRobberVictimChoice: ((victimIds: string[]) => void) | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -58,6 +59,42 @@ export class GameInputController {
 
   setOnDiceRoll(callback: (result: DiceRollResult) => void) {
     this.onDiceRoll = callback;
+  }
+
+  setOnRobberVictimChoice(callback: (victimIds: string[]) => void) {
+    this.onRobberVictimChoice = callback;
+  }
+
+  /** Conclui o roubo após o ladrão movido (vítima única ou escolhida no modal). */
+  private finishRobbery(currentPlayerName: string, victimId: string) {
+    const robbery = this.gameState.resolveRobbery(victimId);
+
+    if (robbery.stolenFromPlayerId !== null && robbery.resourceType !== null) {
+      const victim = this.gameState.getPlayerById(robbery.stolenFromPlayerId);
+      const victimName = victim?.name ?? robbery.stolenFromPlayerId;
+      const stolenResourceName = getResourceName(robbery.resourceType);
+
+      this.statusMessage = `Ladrão movido. Você roubou 1 ${stolenResourceName} de ${victimName}.`;
+      this.gameState.addActionLog(
+        `${currentPlayerName} moveu o ladrão e roubou 1 ${stolenResourceName} de ${victimName}.`,
+      );
+    } else {
+      this.statusMessage = "Ladrão movido. Nada para roubar.";
+      this.gameState.addActionLog(
+        `${currentPlayerName} moveu o ladrão sem roubar recursos.`,
+      );
+    }
+  }
+
+  /** Chamado pela UI quando o humano escolhe a vítima entre várias. */
+  chooseRobberVictim(victimId: string) {
+    const currentPlayer = this.gameState.getCurrentPlayer();
+
+    if (currentPlayer === undefined || this.gameState.phase !== "robber") {
+      return;
+    }
+
+    this.finishRobbery(currentPlayer.name, victimId);
   }
 
   dispose() {
@@ -140,8 +177,24 @@ export class GameInputController {
     );
 
     if (diceResult.total === 7) {
-      this.statusMessage = "Saiu 7. Resolva o descarte e depois mova o ladrão.";
       this.mode = "idle";
+
+      // Bots descartam automaticamente; o humano usa o modal de descarte.
+      const botDiscards = this.gameState.autoDiscardBots();
+      botDiscards.forEach((discardResult) => {
+        const player = this.gameState.getPlayerById(discardResult.playerId);
+        const resourceList = formatResourceList(
+          discardResult.discardedResources,
+        );
+        this.gameState.addActionLog(
+          `${player?.name ?? discardResult.playerId} descartou ${resourceList}.`,
+        );
+      });
+      this.gameState.finalizeDiscardPhaseIfReady();
+
+      this.statusMessage = this.gameState.hasPendingDiscards()
+        ? "Saiu 7. Descarte metade dos seus recursos."
+        : "Saiu 7. Escolha um hexágono para mover o ladrão.";
       return;
     }
 
@@ -168,36 +221,6 @@ export class GameInputController {
     }
 
     this.statusMessage = `Saiu ${diceResult.total}. Você pode agir agora.`;
-  }
-
-  resolveDiscard() {
-    if (this.gameState.phase !== "discard") {
-      this.statusMessage = "Não há descarte pendente.";
-      return;
-    }
-
-    const discardResults = this.gameState.resolveSevenDiscard();
-
-    if (discardResults.length === 0) {
-      this.gameState.addActionLog(
-        "Nenhum jogador tinha mais de 7 recursos para descartar.",
-      );
-    } else {
-      discardResults.forEach((discardResult) => {
-        const player = this.gameState.getPlayerById(discardResult.playerId);
-        const resourceList = formatResourceList(
-          discardResult.discardedResources,
-        );
-
-        this.gameState.addActionLog(
-          `${player?.name ?? discardResult.playerId} descartou ${resourceList}.`,
-        );
-      });
-    }
-
-    this.gameState.addActionLog("Descarte do 7 resolvido.");
-    this.statusMessage = "Escolha um hexágono para mover o ladrão.";
-    this.mode = "idle";
   }
 
   passTurn() {
@@ -381,6 +404,12 @@ export class GameInputController {
     }
 
     if (this.gameState.phase === "robber") {
+      // Já moveu o ladrão e aguarda a escolha da vítima no modal.
+      if (this.gameState.pendingRobberVictimIds.length > 0) {
+        this.statusMessage = "Escolha de quem roubar na janela.";
+        return;
+      }
+
       const tile = this.board.getTileAtPoint(x, y, offsetX, offsetY);
 
       if (tile === undefined) {
@@ -389,29 +418,21 @@ export class GameInputController {
       }
 
       try {
-        const robbery = this.gameState.moveRobber(tile.q, tile.r);
+        const victimIds = this.gameState.placeRobber(tile.q, tile.r);
 
-        if (
-          robbery.stolenFromPlayerId !== null &&
-          robbery.resourceType !== null
-        ) {
-          const victim = this.gameState.getPlayerById(
-            robbery.stolenFromPlayerId,
-          );
-          const victimName = victim?.name ?? robbery.stolenFromPlayerId;
-
-          const stolenResourceName = getResourceName(robbery.resourceType);
-
-          this.statusMessage = `Ladrão movido. Você roubou 1 ${stolenResourceName} de ${victimName}.`;
-          this.gameState.addActionLog(
-            `${currentPlayer.name} moveu o ladrão e roubou 1 ${stolenResourceName} de ${victimName}.`,
-          );
-        } else {
+        if (victimIds.length === 0) {
+          this.gameState.resolveRobbery(null);
           this.statusMessage =
             "Ladrão movido. Nenhum jogador elegível para roubo.";
           this.gameState.addActionLog(
             `${currentPlayer.name} moveu o ladrão sem roubar recursos.`,
           );
+        } else if (victimIds.length === 1) {
+          this.finishRobbery(currentPlayer.name, victimIds[0]);
+        } else {
+          // Mais de uma vítima: o humano escolhe quem roubar.
+          this.statusMessage = "Ladrão movido. Escolha de quem roubar.";
+          this.onRobberVictimChoice?.(victimIds);
         }
       } catch (error) {
         this.statusMessage =

@@ -21,6 +21,11 @@ import type {
   CardHandEntry,
   DevCardPlayResult,
 } from "./DevelopmentCardsModal";
+import { DiscardModal } from "./DiscardModal";
+import type { DiscardResult } from "./DiscardModal";
+import { RobberVictimModal } from "./RobberVictimModal";
+import type { RobberVictimOption } from "./RobberVictimModal";
+import { cloneResourceInventory } from "../core/game/ResourceInventory";
 import {
   DEVELOPMENT_CARD_NAMES,
   PLAYABLE_CARD_TYPES,
@@ -168,6 +173,21 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     canPlayThisTurn: boolean;
     deckCount: number;
   }>({ entries: [], victoryPointCards: 0, canPlayThisTurn: true, deckCount: 0 });
+  const [isDiscardModalOpen, setIsDiscardModalOpen] = useState(false);
+  const [discardData, setDiscardData] = useState<{
+    playerId: string;
+    playerName: string;
+    required: number;
+    available: ResourceInventory;
+  }>({
+    playerId: "",
+    playerName: "",
+    required: 0,
+    available: { brick: 0, lumber: 0, wool: 0, grain: 0, ore: 0 },
+  });
+  const discardActiveRef = useRef(false);
+  const [isVictimModalOpen, setIsVictimModalOpen] = useState(false);
+  const [victimOptions, setVictimOptions] = useState<RobberVictimOption[]>([]);
 
   const handleBankTrade = (
     offering: Record<string, number>,
@@ -441,6 +461,42 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     };
   };
 
+  const handleConfirmDiscard = (
+    resources: Record<ResourceType, number>,
+  ): DiscardResult => {
+    const context = gameContextRef.current;
+
+    if (context === null) {
+      return { ok: false, message: "Jogo não inicializado." };
+    }
+
+    const { gameState } = context;
+
+    try {
+      gameState.discardForPlayer(discardData.playerId, resources);
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Falha ao descartar.",
+      };
+    }
+
+    gameState.addActionLog(
+      `${discardData.playerName} descartou ${formatTradeList(resources)}.`,
+    );
+    gameState.finalizeDiscardPhaseIfReady();
+
+    discardActiveRef.current = false;
+    setIsDiscardModalOpen(false);
+    return { ok: true, message: "Descartado." };
+  };
+
+  const handlePickVictim = (victimId: string) => {
+    setIsVictimModalOpen(false);
+    setVictimOptions([]);
+    inputControllerRef.current?.chooseRobberVictim(victimId);
+  };
+
   useEffect(() => {
     if (gameInitialized.current) return;
     const canvas = canvasRef.current;
@@ -492,6 +548,20 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     inputController.setOnDiceRoll((result: DiceRollResult) => {
       setIsRollingDice(true);
       setDiceResult(result);
+    });
+
+    inputController.setOnRobberVictimChoice((victimIds: string[]) => {
+      const options: RobberVictimOption[] = victimIds.map((id) => {
+        const victim = gameState.getPlayerById(id);
+        return {
+          id,
+          name: victim?.name ?? id,
+          resourceCount: victim?.getTotalResources() ?? 0,
+          avatarSrc: avatarMap[id],
+        };
+      });
+      setVictimOptions(options);
+      setIsVictimModalOpen(true);
     });
 
     inputControllerRef.current = inputController;
@@ -573,7 +643,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         <button id="cityButton">Cidade</button>
         <button id="buyCardButton">Comprar Carta</button>
         <button id="cardsButton">Usar Carta</button>
-        <button id="discardButton">Resolver 7</button>
+        <button id="discardButton">Descartar</button>
         <button id="passButton">Passar Turno</button>
         <button id="tradeButton">Negociar</button>
       </div>
@@ -650,7 +720,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     const handleSettlement = () => inputController.setMode("build-settlement");
     const handleRoad = () => inputController.setMode("build-road");
     const handleCity = () => inputController.setMode("upgrade-settlement");
-    const handleDiscard = () => inputController.resolveDiscard();
+    const handleDiscard = () => syncDiscardModal();
     const handlePass = () => inputController.passTurn();
     const handleBuyCard = () => inputController.buyDevelopmentCard();
     const handleOpenCards = () => openCardsModal();
@@ -884,8 +954,10 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         isInitialPlacement ||
         gameState.phase !== "main-actions" ||
         !gameState.canCurrentPlayerUpgradeSettlement();
-      hudRefs.discardButton.disabled =
-        gameOver || isBotTurn || gameState.phase !== "discard";
+      const humanMustDiscard = gameState
+        .getPendingDiscardPlayerIds()
+        .some((id) => gameState.getPlayerById(id)?.kind === "human");
+      hudRefs.discardButton.disabled = gameOver || !humanMustDiscard;
       hudRefs.passButton.disabled =
         gameOver ||
         isBotTurn ||
@@ -938,6 +1010,31 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
 
     let animationId = 0;
 
+    // Abre o modal de descarte quando um humano precisa descartar (saiu 7).
+    function syncDiscardModal() {
+      if (discardActiveRef.current) {
+        return;
+      }
+
+      const pendingHuman = gameState
+        .getPendingDiscardPlayerIds()
+        .map((id) => gameState.getPlayerById(id))
+        .find((player) => player !== undefined && player.kind === "human");
+
+      if (pendingHuman === undefined) {
+        return;
+      }
+
+      discardActiveRef.current = true;
+      setDiscardData({
+        playerId: pendingHuman.id,
+        playerName: pendingHuman.name,
+        required: gameState.getRequiredDiscardCount(pendingHuman.id),
+        available: cloneResourceInventory(pendingHuman.resources),
+      });
+      setIsDiscardModalOpen(true);
+    }
+
     function gameLoop(t: number) {
 
       // 1. Fundo de mar animado
@@ -947,6 +1044,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       boardRenderer.render(inputController.getRenderState());
 
       botController.tick();
+      syncDiscardModal();
       renderHud();
       animationId = requestAnimationFrame(gameLoop);
     }
@@ -1010,6 +1108,20 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         onPlayMonopoly={handlePlayMonopoly}
         onPlayYearOfPlenty={handlePlayYearOfPlenty}
         onPlayRoadBuilding={handlePlayRoadBuilding}
+      />
+      <DiscardModal
+        key={isDiscardModalOpen ? "discard-open" : "discard-closed"}
+        isOpen={isDiscardModalOpen}
+        playerName={discardData.playerName}
+        required={discardData.required}
+        available={discardData.available}
+        onConfirm={handleConfirmDiscard}
+      />
+      <RobberVictimModal
+        key={isVictimModalOpen ? "victim-open" : "victim-closed"}
+        isOpen={isVictimModalOpen}
+        victims={victimOptions}
+        onPick={handlePickVictim}
       />
     </>
   )
