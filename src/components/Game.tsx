@@ -925,6 +925,10 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         const color = PLAYER_COLORS[i % PLAYER_COLORS.length];
         const playerName = escapeHtml(p.name);
         const playerNameUpper = escapeHtml(p.name.toUpperCase());
+        const badges = [
+          gameState.longestRoadHolderId === p.id ? "🛣️" : "",
+          gameState.largestArmyHolderId === p.id ? "⚔️" : "",
+        ].join("");
 
         return `
           <div class="player-card ${isActive ? "player-card--active" : ""}" style="--player-color:${color}">
@@ -932,7 +936,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
               <img class="player-card__avatar" src="${avatarSrc}" alt="${playerName}" />
             </div>
             <div class="player-card__info">
-              <span class="player-card__name" style="color:${isActive ? color : "#f1f5f9"}">${playerNameUpper}</span>
+              <span class="player-card__name" style="color:${isActive ? color : "#f1f5f9"}">${playerNameUpper} ${badges}</span>
               <span class="player-card__kind">${p.kind === "bot" ? "BOT" : "HUMANO"}</span>
               <span class="player-card__vp">${p.victoryPoints}</span>
               <span class="player-card__pieces">E ${p.pieces.roads} · A ${p.pieces.settlements} · C ${p.pieces.cities}</span>
