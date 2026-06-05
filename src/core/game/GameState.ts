@@ -383,6 +383,32 @@ export class GameState {
     }
   }
 
+  /** Taxa de troca com o banco para um recurso oferecido (4:1, 3:1 ou 2:1). */
+  getBankTradeRate(playerId: string, offeredResource: ResourceType): number {
+    const harbors = this.board.getPlayerHarbors(playerId);
+
+    if (harbors.some((harbor) => harbor.type === offeredResource)) {
+      return 2;
+    }
+
+    if (harbors.some((harbor) => harbor.type === "generic")) {
+      return 3;
+    }
+
+    return 4;
+  }
+
+  /** Melhores taxas do jogador por recurso (para exibir na UI). */
+  getBankTradeRates(playerId: string): Record<ResourceType, number> {
+    return {
+      brick: this.getBankTradeRate(playerId, "brick"),
+      lumber: this.getBankTradeRate(playerId, "lumber"),
+      wool: this.getBankTradeRate(playerId, "wool"),
+      grain: this.getBankTradeRate(playerId, "grain"),
+      ore: this.getBankTradeRate(playerId, "ore"),
+    };
+  }
+
   tradeWithBankBundle(
     playerId: string,
     offered: Partial<ResourceInventory>,
@@ -401,13 +427,35 @@ export class GameState {
       throw new Error("Defina o que oferecer e o que pedir.");
     }
 
-    if (totalOffered !== totalRequested * 4) {
-      throw new Error(
-        "A troca com o banco é 4:1. Ofereça 4 recursos para cada 1 pedido.",
-      );
+    this.assertNoSharedResource(offered, requested);
+
+    // Cada recurso oferecido usa sua melhor taxa (porto específico, genérico
+    // ou 4:1). A soma das "unidades" oferecidas deve igualar o total pedido.
+    let offeredUnits = 0;
+
+    for (const resourceType of Object.keys(offered) as ResourceType[]) {
+      const amount = offered[resourceType] ?? 0;
+
+      if (amount === 0) {
+        continue;
+      }
+
+      const rate = this.getBankTradeRate(playerId, resourceType);
+
+      if (amount % rate !== 0) {
+        throw new Error(
+          `Pela sua taxa, ofereça ${resourceType} em múltiplos de ${rate}.`,
+        );
+      }
+
+      offeredUnits += amount / rate;
     }
 
-    this.assertNoSharedResource(offered, requested);
+    if (offeredUnits !== totalRequested) {
+      throw new Error(
+        "A quantidade oferecida não corresponde ao pedido. Confira as taxas dos seus portos.",
+      );
+    }
 
     if (!player.canAfford(offered)) {
       throw new Error("Você não possui os recursos oferecidos.");
