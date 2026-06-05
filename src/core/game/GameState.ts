@@ -32,6 +32,8 @@ export class GameState {
   bank: ResourceInventory;
   developmentDeck: DevelopmentCardType[];
   freeRoadsRemaining: number;
+  pendingDiscards: Record<string, number>;
+  pendingRobberVictimIds: string[];
   hasRolledDiceThisTurn: boolean;
   hasPlayedDevelopmentCardThisTurn: boolean;
   private initialPlacementRound: 1 | 2 | 0;
@@ -58,6 +60,8 @@ export class GameState {
     };
     this.developmentDeck = createDevelopmentDeck();
     this.freeRoadsRemaining = 0;
+    this.pendingDiscards = {};
+    this.pendingRobberVictimIds = [];
     this.hasRolledDiceThisTurn = false;
     this.hasPlayedDevelopmentCardThisTurn = false;
     this.initialPlacementRound = 1;
@@ -211,6 +215,10 @@ export class GameState {
     this.hasRolledDiceThisTurn = true;
     this.phase = total === 7 ? "discard" : "main-actions";
 
+    if (total === 7) {
+      this.beginSevenDiscard();
+    }
+
     return { die1, die2, total };
   }
 
@@ -232,6 +240,8 @@ export class GameState {
 
     this.phase = "roll-dice";
     this.freeRoadsRemaining = 0;
+    this.pendingDiscards = {};
+    this.pendingRobberVictimIds = [];
     this.hasRolledDiceThisTurn = false;
     this.hasPlayedDevelopmentCardThisTurn = false;
   }
@@ -469,9 +479,6 @@ export class GameState {
     );
   }
 
-  canCurrentPlayerBuyDevelopmentCard() {
-    return this.canCurrentPlayerAfford(ConstructionCost.developmentCard);
-  }
 
   spendForRoad() {
     this.spendCurrentPlayerResources(ConstructionCost.road);
@@ -679,30 +686,107 @@ export class GameState {
     return this.phase === "main-actions";
   }
 
-  resolveSevenDiscard(): SevenDiscardResult[] {
-    const discardResults: SevenDiscardResult[] = [];
+  // ---- Descarte do 7 ----
+
+  /** Marca quais jogadores precisam descartar (metade, arredondada p/ baixo). */
+  beginSevenDiscard() {
+    this.pendingDiscards = {};
 
     this.players.forEach((player) => {
-      const totalResources = player.getTotalResources();
+      const total = player.getTotalResources();
 
-      if (totalResources > 7) {
-        const discardedResources = player.discardResources(
-          Math.floor(totalResources / 2),
-        );
-
-        this.depositResourcesToBank(discardedResources);
-        discardResults.push({
-          playerId: player.id,
-          discardedResources,
-        });
+      if (total > 7) {
+        this.pendingDiscards[player.id] = Math.floor(total / 2);
       }
     });
-
-    this.phase = "robber";
-    return discardResults;
   }
 
-  moveRobber(q: number, r: number): RobberyResult {
+  getRequiredDiscardCount(playerId: string) {
+    return this.pendingDiscards[playerId] ?? 0;
+  }
+
+  getPendingDiscardPlayerIds() {
+    return Object.keys(this.pendingDiscards);
+  }
+
+  hasPendingDiscards() {
+    return Object.keys(this.pendingDiscards).length > 0;
+  }
+
+  /** Descarte automático dos bots pendentes (aleatório). */
+  autoDiscardBots(): SevenDiscardResult[] {
+    const results: SevenDiscardResult[] = [];
+
+    this.getPendingDiscardPlayerIds().forEach((playerId) => {
+      const player = this.getPlayerById(playerId);
+
+      if (player === undefined || player.kind !== "bot") {
+        return;
+      }
+
+      const discardedResources = player.discardResources(
+        this.pendingDiscards[playerId],
+      );
+
+      this.depositResourcesToBank(discardedResources);
+      delete this.pendingDiscards[playerId];
+      results.push({ playerId, discardedResources });
+    });
+
+    return results;
+  }
+
+  /** Descarte escolhido por um jogador (humano). */
+  discardForPlayer(
+    playerId: string,
+    resources: Partial<ResourceInventory>,
+  ): Partial<ResourceInventory> {
+    const required = this.pendingDiscards[playerId];
+
+    if (required === undefined) {
+      throw new Error("Este jogador não precisa descartar.");
+    }
+
+    const player = this.getPlayerById(playerId);
+
+    if (player === undefined) {
+      throw new Error("Jogador não encontrado.");
+    }
+
+    const total = (Object.keys(resources) as ResourceType[]).reduce(
+      (sum, resourceType) => sum + (resources[resourceType] ?? 0),
+      0,
+    );
+
+    if (total !== required) {
+      throw new Error(`Você precisa descartar exatamente ${required} recursos.`);
+    }
+
+    if (!player.canAfford(resources)) {
+      throw new Error("Você não possui esses recursos para descartar.");
+    }
+
+    player.spendResources(resources);
+    this.depositResourcesToBank(resources);
+    delete this.pendingDiscards[playerId];
+
+    return resources;
+  }
+
+  /** Quando todos descartaram, avança para a fase do ladrão. */
+  finalizeDiscardPhaseIfReady() {
+    if (this.phase === "discard" && !this.hasPendingDiscards()) {
+      this.phase = "robber";
+    }
+  }
+
+  // ---- Ladrão ----
+
+  /**
+   * Move o ladrão para o hexágono e retorna os ids dos adversários elegíveis
+   * (com recursos) sem ainda roubar. Use resolveRobbery() para concluir.
+   */
+  placeRobber(q: number, r: number): string[] {
     const tile = this.board.getTileAtHex(q, r);
     const currentPlayer = this.currentPlayer;
 
@@ -728,7 +812,7 @@ export class GameState {
 
     tile.hasRobber = true;
 
-    const candidateVictimIds = Array.from(
+    const victimIds = Array.from(
       new Set(
         tile.vertexIds
           .map(
@@ -740,38 +824,56 @@ export class GameState {
               ownerId !== null && ownerId !== currentPlayer.id,
           ),
       ),
-    );
+    ).filter((playerId) => {
+      const victim = this.getPlayerById(playerId);
+      return victim !== undefined && victim.getTotalResources() > 0;
+    });
 
-    const candidateVictims = candidateVictimIds
-      .map((playerId) => this.getPlayerById(playerId))
-      .filter((player): player is Player => player !== undefined)
-      .filter((player) => player.getTotalResources() > 0);
+    this.pendingRobberVictimIds = victimIds;
+
+    return victimIds;
+  }
+
+  /** Conclui o roubo: rouba 1 recurso aleatório da vítima (ou nada) e finaliza. */
+  resolveRobbery(victimId: string | null): RobberyResult {
+    const currentPlayer = this.currentPlayer;
 
     let stolenFromPlayerId: string | null = null;
     let resourceType: keyof ResourceInventory | null = null;
 
-    if (candidateVictims.length > 0) {
-      const randomVictimIndex = Math.floor(
-        Math.random() * candidateVictims.length,
-      );
-      const victim = candidateVictims[randomVictimIndex];
-      const stolenResource = victim.takeRandomResource();
+    if (
+      currentPlayer !== undefined &&
+      victimId !== null &&
+      this.pendingRobberVictimIds.includes(victimId)
+    ) {
+      const victim = this.getPlayerById(victimId);
+      const stolenResource = victim?.takeRandomResource() ?? null;
 
-      if (stolenResource !== null) {
+      if (victim !== undefined && stolenResource !== null) {
         currentPlayer.addResource(stolenResource, 1);
         stolenFromPlayerId = victim.id;
         resourceType = stolenResource;
       }
     }
 
+    this.pendingRobberVictimIds = [];
+
     // Se o ladrão veio de um Cavaleiro jogado antes da rolagem, o jogador
     // ainda precisa rolar os dados; caso contrário, segue para as ações.
     this.phase = this.hasRolledDiceThisTurn ? "main-actions" : "roll-dice";
 
-    return {
-      stolenFromPlayerId,
-      resourceType,
-    };
+    return { stolenFromPlayerId, resourceType };
+  }
+
+  /** Conveniência para bots: move o ladrão e rouba de uma vítima aleatória. */
+  moveRobberAuto(q: number, r: number): RobberyResult {
+    const victimIds = this.placeRobber(q, r);
+    const chosen =
+      victimIds.length > 0
+        ? victimIds[Math.floor(Math.random() * victimIds.length)]
+        : null;
+
+    return this.resolveRobbery(chosen);
   }
 
   isCurrentPlayer(playerId: string) {
