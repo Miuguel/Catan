@@ -649,6 +649,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         <button id="discardButton">Descartar</button>
         <button id="passButton">Passar Turno</button>
         <button id="tradeButton">Negociar</button>
+        <button id="menuButton">↩ Menu</button>
       </div>
 
       <div class="dev-cards-panel">
@@ -686,6 +687,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     const discardButton = hud.querySelector<HTMLButtonElement>("#discardButton");
     const passButton = hud.querySelector<HTMLButtonElement>("#passButton");
     const tradeButton = hud.querySelector<HTMLButtonElement>("#tradeButton");
+    const menuButton = hud.querySelector<HTMLButtonElement>("#menuButton");
     const buyCardButton = hud.querySelector<HTMLButtonElement>("#buyCardButton");
     const cardsButton = hud.querySelector<HTMLButtonElement>("#cardsButton");
     const devCardsList = hud.querySelector<HTMLDivElement>("#devCardsList");
@@ -705,7 +707,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       phaseBadge === null || currentPlayerText === null || victoryPointsText === null ||
       resourceText === null || statusText === null || gameLogList === null ||
       debugPanelContent === null || winnerBanner === null ||
-      playersList === null || tradeButton === null ||
+      playersList === null || tradeButton === null || menuButton === null ||
       buyCardButton === null || cardsButton === null || devCardsList === null
     ) {
       throw new Error("HUD elements not found");
@@ -713,7 +715,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
 
     const hudRefs = {
       rollButton, settlementButton, roadButton, cityButton, discardButton,
-      passButton, tradeButton, buyCardButton, cardsButton, devCardsList,
+      passButton, tradeButton, menuButton, buyCardButton, cardsButton, devCardsList,
       phaseBadge, currentPlayerText, victoryPointsText,
       resourceText, statusText, gameLogList, debugPanelContent, winnerBanner,
       playersList,
@@ -748,9 +750,15 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
 
       setIsTradeModalOpen(true);
     };
+    const handleMenu = () => {
+      if (window.confirm("Voltar ao menu? A partida atual será perdida.")) {
+        onBack();
+      }
+    };
 
     hudRefs.buyCardButton.addEventListener("click", handleBuyCard);
     hudRefs.cardsButton.addEventListener("click", handleOpenCards);
+    hudRefs.menuButton.addEventListener("click", handleMenu);
     hudRefs.rollButton.addEventListener("click", handleRoll);
     hudRefs.settlementButton.addEventListener("click", handleSettlement);
     hudRefs.roadButton.addEventListener("click", handleRoad);
@@ -1077,6 +1085,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       hudRefs.discardButton.removeEventListener("click", handleDiscard);
       hudRefs.passButton.removeEventListener("click", handlePass);
       hudRefs.tradeButton.removeEventListener("click", handleTrade);
+      hudRefs.menuButton.removeEventListener("click", handleMenu);
       hudRefs.buyCardButton.removeEventListener("click", handleBuyCard);
       hudRefs.cardsButton.removeEventListener("click", handleOpenCards);
       botController.dispose();
