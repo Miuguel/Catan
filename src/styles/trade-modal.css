@@ -476,3 +476,24 @@
     padding-left: 0;
   }
 }
+
+.trade-modal__feedback {
+  margin: 0 24px 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.trade-modal__feedback--ok {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.trade-modal__feedback--error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
