@@ -1,9 +1,16 @@
 import { Board } from "../board/Board";
 import { ConstructionCost } from "./ConstructionCost";
+import { createDevelopmentDeck } from "./DevelopmentCard";
+import type { DevelopmentCardType } from "./DevelopmentCard";
 import { Player } from "./Player";
 import type { ResourceInventory } from "./ResourceInventory";
 import type { ResourceType } from "./ResourceType";
 import type { TurnPhase } from "./TurnPhase";
+
+export type DevelopmentCardPurchaseResult = {
+  type: DevelopmentCardType;
+  wonGame: boolean;
+};
 
 export type RobberyResult = {
   stolenFromPlayerId: string | null;
@@ -23,6 +30,8 @@ export class GameState {
   turnNumber: number;
   winnerId: string | null;
   bank: ResourceInventory;
+  developmentDeck: DevelopmentCardType[];
+  freeRoadsRemaining: number;
   hasRolledDiceThisTurn: boolean;
   hasPlayedDevelopmentCardThisTurn: boolean;
   private initialPlacementRound: 1 | 2 | 0;
@@ -47,6 +56,8 @@ export class GameState {
       grain: 19,
       ore: 19,
     };
+    this.developmentDeck = createDevelopmentDeck();
+    this.freeRoadsRemaining = 0;
     this.hasRolledDiceThisTurn = false;
     this.hasPlayedDevelopmentCardThisTurn = false;
     this.initialPlacementRound = 1;
@@ -220,6 +231,7 @@ export class GameState {
     }
 
     this.phase = "roll-dice";
+    this.freeRoadsRemaining = 0;
     this.hasRolledDiceThisTurn = false;
     this.hasPlayedDevelopmentCardThisTurn = false;
   }
@@ -489,6 +501,180 @@ export class GameState {
     this.hasPlayedDevelopmentCardThisTurn = true;
   }
 
+  getDevelopmentDeckCount() {
+    return this.developmentDeck.length;
+  }
+
+  canBuyDevelopmentCard(playerId: string) {
+    return (
+      this.isCurrentPlayer(playerId) &&
+      this.phase === "main-actions" &&
+      this.developmentDeck.length > 0 &&
+      this.canCurrentPlayerAfford(ConstructionCost.developmentCard)
+    );
+  }
+
+  buyDevelopmentCard(playerId: string): DevelopmentCardPurchaseResult {
+    if (!this.canBuyDevelopmentCard(playerId)) {
+      throw new Error("Não é possível comprar uma carta de desenvolvimento agora.");
+    }
+
+    const player = this.getPlayerById(playerId);
+
+    if (player === undefined) {
+      throw new Error("Jogador não encontrado.");
+    }
+
+    const drawnType = this.developmentDeck.pop();
+
+    if (drawnType === undefined) {
+      throw new Error("O baralho de desenvolvimento está vazio.");
+    }
+
+    this.spendForDevelopmentCard();
+    player.addDevelopmentCard({
+      type: drawnType,
+      purchasedTurn: this.turnNumber,
+    });
+
+    // Carta de Ponto de Vitória conta imediatamente (pode vencer no mesmo turno).
+    if (drawnType === "victory-point") {
+      this.awardVictoryPoints(playerId, 1);
+    }
+
+    return { type: drawnType, wonGame: this.winnerId === playerId };
+  }
+
+  hasFreeRoad() {
+    return this.freeRoadsRemaining > 0;
+  }
+
+  consumeFreeRoad() {
+    if (this.freeRoadsRemaining > 0) {
+      this.freeRoadsRemaining -= 1;
+    }
+  }
+
+  canPlayDevelopmentCard(playerId: string, type: DevelopmentCardType) {
+    const player = this.getPlayerById(playerId);
+
+    if (
+      player === undefined ||
+      !this.isCurrentPlayer(playerId) ||
+      this.hasPlayedDevelopmentCardThisTurn ||
+      !player.hasPlayableDevelopmentCard(type, this.turnNumber)
+    ) {
+      return false;
+    }
+
+    // Cavaleiro pode ser jogado antes de rolar os dados; as demais só nas ações.
+    if (type === "knight") {
+      return this.phase === "roll-dice" || this.phase === "main-actions";
+    }
+
+    return this.phase === "main-actions";
+  }
+
+  playKnight(playerId: string) {
+    if (!this.canPlayDevelopmentCard(playerId, "knight")) {
+      throw new Error("Não é possível jogar o Cavaleiro agora.");
+    }
+
+    const player = this.getPlayerById(playerId);
+
+    if (player === undefined) {
+      throw new Error("Jogador não encontrado.");
+    }
+
+    this.markDevelopmentCardPlayed();
+    player.removeDevelopmentCard("knight", this.turnNumber);
+    player.playedKnights += 1;
+    this.phase = "robber";
+  }
+
+  playMonopoly(playerId: string, resourceType: ResourceType) {
+    if (!this.canPlayDevelopmentCard(playerId, "monopoly")) {
+      throw new Error("Não é possível jogar o Monopólio agora.");
+    }
+
+    const player = this.getPlayerById(playerId);
+
+    if (player === undefined) {
+      throw new Error("Jogador não encontrado.");
+    }
+
+    this.markDevelopmentCardPlayed();
+    player.removeDevelopmentCard("monopoly", this.turnNumber);
+
+    let totalTaken = 0;
+
+    this.players.forEach((otherPlayer) => {
+      if (otherPlayer.id === playerId) {
+        return;
+      }
+
+      const amount = otherPlayer.resources[resourceType];
+
+      if (amount > 0) {
+        otherPlayer.spendResources({ [resourceType]: amount });
+        totalTaken += amount;
+      }
+    });
+
+    if (totalTaken > 0) {
+      player.addResource(resourceType, totalTaken);
+    }
+
+    return totalTaken;
+  }
+
+  playYearOfPlenty(playerId: string, resources: Partial<ResourceInventory>) {
+    if (!this.canPlayDevelopmentCard(playerId, "year-of-plenty")) {
+      throw new Error("Não é possível jogar o Ano de Fartura agora.");
+    }
+
+    const total = (Object.keys(resources) as ResourceType[]).reduce(
+      (sum, resourceType) => sum + (resources[resourceType] ?? 0),
+      0,
+    );
+
+    if (total < 1 || total > 2) {
+      throw new Error("Escolha 1 ou 2 recursos para o Ano de Fartura.");
+    }
+
+    if (!this.canBankAfford(resources)) {
+      throw new Error("O banco não possui os recursos escolhidos.");
+    }
+
+    const player = this.getPlayerById(playerId);
+
+    if (player === undefined) {
+      throw new Error("Jogador não encontrado.");
+    }
+
+    this.markDevelopmentCardPlayed();
+    player.removeDevelopmentCard("year-of-plenty", this.turnNumber);
+    this.withdrawResourcesFromBank(resources);
+    player.addResources(resources);
+  }
+
+  playRoadBuilding(playerId: string) {
+    if (!this.canPlayDevelopmentCard(playerId, "road-building")) {
+      throw new Error("Não é possível jogar Construção de Estradas agora.");
+    }
+
+    const player = this.getPlayerById(playerId);
+
+    if (player === undefined) {
+      throw new Error("Jogador não encontrado.");
+    }
+
+    this.markDevelopmentCardPlayed();
+    player.removeDevelopmentCard("road-building", this.turnNumber);
+    // Limita as estradas grátis às peças disponíveis (até 2).
+    this.freeRoadsRemaining = Math.min(2, player.pieces.roads);
+  }
+
   canTakeMainActions() {
     return this.phase === "main-actions";
   }
@@ -578,7 +764,9 @@ export class GameState {
       }
     }
 
-    this.phase = "main-actions";
+    // Se o ladrão veio de um Cavaleiro jogado antes da rolagem, o jogador
+    // ainda precisa rolar os dados; caso contrário, segue para as ações.
+    this.phase = this.hasRolledDiceThisTurn ? "main-actions" : "roll-dice";
 
     return {
       stolenFromPlayerId,

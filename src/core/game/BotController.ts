@@ -268,12 +268,28 @@ export class BotController {
 
   private moveRobber(currentPlayer: Player) {
     const currentRobberTile = this.board.tiles.find((tile) => tile.hasRobber);
-    const targetTile = this.board.tiles.find(
-      (tile) =>
-        currentRobberTile === undefined ||
-        tile.q !== currentRobberTile.q ||
-        tile.r !== currentRobberTile.r,
-    );
+    const isDifferentTile = (tile: { q: number; r: number }) =>
+      currentRobberTile === undefined ||
+      tile.q !== currentRobberTile.q ||
+      tile.r !== currentRobberTile.r;
+
+    // Prefere um hexágono que tenha um adversário com recursos para roubar.
+    const targetTile =
+      this.board.tiles.find(
+        (tile) =>
+          isDifferentTile(tile) &&
+          tile.vertexIds.some((vertexId) => {
+            const ownerId =
+              this.board.getSettlementAtVertex(vertexId)?.ownerId ?? null;
+
+            if (ownerId === null || ownerId === currentPlayer.id) {
+              return false;
+            }
+
+            const owner = this.gameState.getPlayerById(ownerId);
+            return owner !== undefined && owner.getTotalResources() > 0;
+          }),
+      ) ?? this.board.tiles.find((tile) => isDifferentTile(tile));
 
     if (targetTile === undefined) {
       this.gameState.addActionLog(
@@ -390,33 +406,137 @@ export class BotController {
   }
 
   private tryPlayDevelopmentCard(currentPlayer: Player) {
+    if (!this.gameState.canPlayDevelopmentCardThisTurn()) {
+      return false;
+    }
+
+    if (this.gameState.canPlayDevelopmentCard(currentPlayer.id, "knight")) {
+      this.gameState.playKnight(currentPlayer.id);
+      this.gameState.addActionLog(`${currentPlayer.name} jogou um Cavaleiro.`);
+      return true; // próximo tick: fase do ladrão será resolvida
+    }
+
     if (
-      currentPlayer.developmentCards.length === 0 ||
-      !this.gameState.canPlayDevelopmentCardThisTurn()
+      this.gameState.canPlayDevelopmentCard(currentPlayer.id, "year-of-plenty")
     ) {
-      return false;
+      const picks = this.pickYearOfPlentyResources(currentPlayer);
+
+      try {
+        this.gameState.playYearOfPlenty(currentPlayer.id, picks);
+        this.gameState.addActionLog(
+          `${currentPlayer.name} jogou Ano de Fartura e pegou ${formatResourceList(picks)}.`,
+        );
+        return true;
+      } catch {
+        // se não houver recurso no banco, tenta outra carta
+      }
     }
 
-    const cardName = currentPlayer.developmentCards.shift();
-
-    if (cardName === undefined) {
-      return false;
+    if (this.gameState.canPlayDevelopmentCard(currentPlayer.id, "monopoly")) {
+      const resourceType = this.pickMonopolyResource(currentPlayer);
+      const total = this.gameState.playMonopoly(currentPlayer.id, resourceType);
+      this.gameState.addActionLog(
+        `${currentPlayer.name} jogou Monopólio de ${getResourceName(resourceType)} e coletou ${total}.`,
+      );
+      return true;
     }
 
-    this.gameState.markDevelopmentCardPlayed();
-    this.gameState.addActionLog(
-      `${currentPlayer.name} jogou ${cardName} sem efeito especial nesta versão simplificada.`,
-    );
-    return true;
+    if (
+      this.gameState.canPlayDevelopmentCard(currentPlayer.id, "road-building")
+    ) {
+      this.gameState.playRoadBuilding(currentPlayer.id);
+      this.gameState.addActionLog(
+        `${currentPlayer.name} jogou Construção de Estradas.`,
+      );
+      return true; // estradas grátis serão construídas nos próximos ticks
+    }
+
+    return false;
+  }
+
+  private pickMonopolyResource(currentPlayer: Player): ResourceType {
+    const totals: Record<ResourceType, number> = {
+      brick: 0,
+      lumber: 0,
+      wool: 0,
+      grain: 0,
+      ore: 0,
+    };
+
+    this.gameState.players.forEach((player) => {
+      if (player.id === currentPlayer.id) {
+        return;
+      }
+
+      RESOURCE_TYPES.forEach((resourceType) => {
+        totals[resourceType] += player.resources[resourceType];
+      });
+    });
+
+    let best: ResourceType = "brick";
+
+    RESOURCE_TYPES.forEach((resourceType) => {
+      if (totals[resourceType] > totals[best]) {
+        best = resourceType;
+      }
+    });
+
+    return best;
+  }
+
+  private pickYearOfPlentyResources(
+    currentPlayer: Player,
+  ): Partial<ResourceInventory> {
+    const result: Partial<ResourceInventory> = {};
+    let remaining = 2;
+
+    const fillMissingFor = (cost: ResourceInventory) => {
+      RESOURCE_TYPES.forEach((resourceType) => {
+        if (remaining <= 0) {
+          return;
+        }
+
+        const missing =
+          cost[resourceType] -
+          currentPlayer.resources[resourceType] -
+          (result[resourceType] ?? 0);
+
+        if (missing > 0 && this.gameState.bank[resourceType] > 0) {
+          const take = Math.min(missing, remaining);
+          result[resourceType] = (result[resourceType] ?? 0) + take;
+          remaining -= take;
+        }
+      });
+    };
+
+    fillMissingFor(ConstructionCost.settlement);
+    fillMissingFor(ConstructionCost.road);
+
+    // Completa com os primeiros recursos disponíveis no banco.
+    RESOURCE_TYPES.forEach((resourceType) => {
+      if (remaining <= 0) {
+        return;
+      }
+
+      const available =
+        this.gameState.bank[resourceType] - (result[resourceType] ?? 0);
+
+      if (available > 0) {
+        const take = Math.min(remaining, available);
+        result[resourceType] = (result[resourceType] ?? 0) + take;
+        remaining -= take;
+      }
+    });
+
+    return result;
   }
 
   private tryBuyDevelopmentCard(currentPlayer: Player) {
-    if (!this.gameState.canCurrentPlayerBuyDevelopmentCard()) {
+    if (!this.gameState.canBuyDevelopmentCard(currentPlayer.id)) {
       return false;
     }
 
-    this.gameState.spendForDevelopmentCard();
-    currentPlayer.addDevelopmentCard("Carta de Desenvolvimento");
+    this.gameState.buyDevelopmentCard(currentPlayer.id);
     this.gameState.addActionLog(
       `${currentPlayer.name} comprou uma carta de desenvolvimento.`,
     );

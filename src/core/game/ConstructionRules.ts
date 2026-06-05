@@ -71,6 +71,71 @@ export class ConstructionRules {
     });
   }
 
+  /**
+   * Retorna uma mensagem explicando por que a aldeia não pode ser construída
+   * no vértice (fora da fase inicial), ou null se a construção é permitida.
+   */
+  describeSettlementPlacementIssue(
+    vertexId: string,
+    playerId: string,
+  ): string | null {
+    const player = this.gameState.getPlayerById(playerId);
+
+    if (player === undefined) {
+      return "Jogador não encontrado.";
+    }
+
+    if (!player.canBuildSettlementPiece()) {
+      return "Você não tem mais peças de aldeia disponíveis.";
+    }
+
+    if (!this.gameState.isCurrentPlayer(playerId)) {
+      return "Aguarde: não é o seu turno.";
+    }
+
+    if (!this.gameState.canTakeMainActions()) {
+      return "Você só pode construir na fase principal (após rolar os dados).";
+    }
+
+    if (!this.gameState.canCurrentPlayerAfford(ConstructionCost.settlement)) {
+      return "Recursos insuficientes: a aldeia custa 1 tijolo, 1 madeira, 1 lã e 1 trigo.";
+    }
+
+    const vertex = this.board.getVertex(vertexId);
+
+    if (vertex === undefined) {
+      return "Clique em um vértice válido para construir a aldeia.";
+    }
+
+    if (vertex.isOccupied()) {
+      return "Já existe uma construção neste vértice.";
+    }
+
+    const respectsDistanceRule = vertex.adjacentVertexIds.every(
+      (adjacentVertexId) => {
+        const adjacentVertex = this.board.getVertex(adjacentVertexId);
+
+        return adjacentVertex === undefined || !adjacentVertex.isOccupied();
+      },
+    );
+
+    if (!respectsDistanceRule) {
+      return "Muito perto de outra construção: deixe ao menos 2 vértices de distância.";
+    }
+
+    const hasConnectingRoad = vertex.connectedRoadIds.some((roadId) => {
+      const road = this.board.getRoadById(roadId);
+
+      return road !== undefined && road.ownerId === playerId;
+    });
+
+    if (!hasConnectingRoad) {
+      return "A aldeia precisa estar ligada a uma estrada sua. Construa uma estrada até este ponto primeiro.";
+    }
+
+    return null;
+  }
+
   canUpgradeSettlement(vertexId: string, playerId: string) {
     const player = this.gameState.getPlayerById(playerId);
 
@@ -117,6 +182,7 @@ export class ConstructionRules {
 
     if (
       !isInitialPlacement &&
+      !this.gameState.hasFreeRoad() &&
       !this.gameState.canCurrentPlayerAfford(ConstructionCost.road)
     ) {
       return false;
@@ -192,7 +258,11 @@ export class ConstructionRules {
     }
 
     if (!isInitialPlacement) {
-      this.gameState.spendForRoad();
+      if (this.gameState.hasFreeRoad()) {
+        this.gameState.consumeFreeRoad();
+      } else {
+        this.gameState.spendForRoad();
+      }
     }
 
     this.gameState.getPlayerById(playerId)?.consumeRoadPiece();

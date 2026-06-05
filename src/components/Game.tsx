@@ -16,6 +16,25 @@ import { GameInputController, type DiceRollResult } from "../input/GameInputCont
 import { TradeModal } from "./TradeModal";
 import type { TradeResult } from "./TradeModal";
 import { DiceRoller } from "./DiceRoller";
+import { DevelopmentCardsModal } from "./DevelopmentCardsModal";
+import type {
+  CardHandEntry,
+  DevCardPlayResult,
+} from "./DevelopmentCardsModal";
+import {
+  DEVELOPMENT_CARD_NAMES,
+  PLAYABLE_CARD_TYPES,
+} from "../core/game/DevelopmentCard";
+import type { DevelopmentCardType } from "../core/game/DevelopmentCard";
+import { getResourceName } from "../core/game/ResourceNames";
+
+const DEV_CARD_SYMBOLS: Record<DevelopmentCardType, string> = {
+  knight: "⚔️",
+  "victory-point": "🏆",
+  monopoly: "💰",
+  "year-of-plenty": "🌾",
+  "road-building": "🛣️",
+};
 
 interface PlayerConfig {
   name: string;
@@ -142,6 +161,13 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
   const [isRollingDice, setIsRollingDice] = useState(false);
   const [diceResult, setDiceResult] = useState<DiceRollResult | null>(null);
   const inputControllerRef = useRef<GameInputController | null>(null);
+  const [isCardsModalOpen, setIsCardsModalOpen] = useState(false);
+  const [cardModalData, setCardModalData] = useState<{
+    entries: CardHandEntry[];
+    victoryPointCards: number;
+    canPlayThisTurn: boolean;
+    deckCount: number;
+  }>({ entries: [], victoryPointCards: 0, canPlayThisTurn: true, deckCount: 0 });
 
   const handleBankTrade = (
     offering: Record<string, number>,
@@ -252,6 +278,167 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     );
 
     return { ok: true, message: `${target.name} aceitou a troca!` };
+  };
+
+  const openCardsModal = () => {
+    const context = gameContextRef.current;
+
+    if (context === null) {
+      return;
+    }
+
+    const { gameState } = context;
+    const current = gameState.currentPlayer;
+
+    if (current === undefined) {
+      return;
+    }
+
+    const counts = current.getDevelopmentCardCounts();
+    const entries: CardHandEntry[] = PLAYABLE_CARD_TYPES.map((type) => ({
+      type,
+      name: DEVELOPMENT_CARD_NAMES[type],
+      total: counts[type],
+      playable: current.developmentCards.filter(
+        (card) =>
+          card.type === type && card.purchasedTurn < gameState.turnNumber,
+      ).length,
+    })).filter((entry) => entry.total > 0);
+
+    setCardModalData({
+      entries,
+      victoryPointCards: current.countVictoryPointCards(),
+      canPlayThisTurn: gameState.canPlayDevelopmentCardThisTurn(),
+      deckCount: gameState.getDevelopmentDeckCount(),
+    });
+    setIsCardsModalOpen(true);
+  };
+
+  const handlePlayKnight = (): DevCardPlayResult => {
+    const context = gameContextRef.current;
+
+    if (context === null) {
+      return { ok: false, message: "Jogo não inicializado." };
+    }
+
+    const { gameState } = context;
+    const current = gameState.currentPlayer;
+
+    if (current === undefined) {
+      return { ok: false, message: "Nenhum jogador ativo." };
+    }
+
+    try {
+      gameState.playKnight(current.id);
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Falha ao jogar.",
+      };
+    }
+
+    gameState.addActionLog(`${current.name} jogou um Cavaleiro.`);
+    inputControllerRef.current?.setStatusMessage(
+      "Cavaleiro jogado. Clique em um hexágono para mover o ladrão.",
+    );
+    return { ok: true, message: "Cavaleiro jogado. Mova o ladrão." };
+  };
+
+  const handlePlayMonopoly = (resource: ResourceType): DevCardPlayResult => {
+    const context = gameContextRef.current;
+
+    if (context === null) {
+      return { ok: false, message: "Jogo não inicializado." };
+    }
+
+    const { gameState } = context;
+    const current = gameState.currentPlayer;
+
+    if (current === undefined) {
+      return { ok: false, message: "Nenhum jogador ativo." };
+    }
+
+    let total: number;
+
+    try {
+      total = gameState.playMonopoly(current.id, resource);
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Falha ao jogar.",
+      };
+    }
+
+    gameState.addActionLog(
+      `${current.name} jogou Monopólio de ${getResourceName(resource)} e coletou ${total}.`,
+    );
+    inputControllerRef.current?.setStatusMessage(
+      `Monopólio: você coletou ${total} de ${getResourceName(resource)}.`,
+    );
+    return { ok: true, message: `Você coletou ${total} de ${getResourceName(resource)}.` };
+  };
+
+  const handlePlayYearOfPlenty = (
+    resources: Record<ResourceType, number>,
+  ): DevCardPlayResult => {
+    const context = gameContextRef.current;
+
+    if (context === null) {
+      return { ok: false, message: "Jogo não inicializado." };
+    }
+
+    const { gameState } = context;
+    const current = gameState.currentPlayer;
+
+    if (current === undefined) {
+      return { ok: false, message: "Nenhum jogador ativo." };
+    }
+
+    try {
+      gameState.playYearOfPlenty(current.id, resources);
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Falha ao jogar.",
+      };
+    }
+
+    gameState.addActionLog(`${current.name} jogou Ano de Fartura.`);
+    inputControllerRef.current?.setStatusMessage(
+      "Ano de Fartura: recursos recebidos do banco.",
+    );
+    return { ok: true, message: "Recursos recebidos do banco." };
+  };
+
+  const handlePlayRoadBuilding = (): DevCardPlayResult => {
+    const context = gameContextRef.current;
+
+    if (context === null) {
+      return { ok: false, message: "Jogo não inicializado." };
+    }
+
+    const { gameState } = context;
+    const current = gameState.currentPlayer;
+
+    if (current === undefined) {
+      return { ok: false, message: "Nenhum jogador ativo." };
+    }
+
+    try {
+      gameState.playRoadBuilding(current.id);
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Falha ao jogar.",
+      };
+    }
+
+    gameState.addActionLog(`${current.name} jogou Construção de Estradas.`);
+    inputControllerRef.current?.startRoadBuildingMode();
+    return {
+      ok: true,
+      message: "Construa até 2 estradas grátis no tabuleiro.",
+    };
   };
 
   useEffect(() => {
@@ -384,6 +571,8 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         <button id="settlementButton">Aldeia</button>
         <button id="roadButton">Estrada</button>
         <button id="cityButton">Cidade</button>
+        <button id="buyCardButton">Comprar Carta</button>
+        <button id="cardsButton">Usar Carta</button>
         <button id="discardButton">Resolver 7</button>
         <button id="passButton">Passar Turno</button>
         <button id="tradeButton">Negociar</button>
@@ -424,6 +613,9 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     const discardButton = hud.querySelector<HTMLButtonElement>("#discardButton");
     const passButton = hud.querySelector<HTMLButtonElement>("#passButton");
     const tradeButton = hud.querySelector<HTMLButtonElement>("#tradeButton");
+    const buyCardButton = hud.querySelector<HTMLButtonElement>("#buyCardButton");
+    const cardsButton = hud.querySelector<HTMLButtonElement>("#cardsButton");
+    const devCardsList = hud.querySelector<HTMLDivElement>("#devCardsList");
     const phaseBadge = hud.querySelector<HTMLDivElement>("#phaseBadge");
     const currentPlayerText = hud.querySelector<HTMLDivElement>("#currentPlayerText");
     const victoryPointsText = hud.querySelector<HTMLDivElement>("#victoryPointsText");
@@ -440,14 +632,16 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       phaseBadge === null || currentPlayerText === null || victoryPointsText === null ||
       resourceText === null || statusText === null || gameLogList === null ||
       debugPanelContent === null || winnerBanner === null ||
-      playersList === null || tradeButton === null
+      playersList === null || tradeButton === null ||
+      buyCardButton === null || cardsButton === null || devCardsList === null
     ) {
       throw new Error("HUD elements not found");
     }
 
     const hudRefs = {
       rollButton, settlementButton, roadButton, cityButton, discardButton,
-      passButton, tradeButton, phaseBadge, currentPlayerText, victoryPointsText,
+      passButton, tradeButton, buyCardButton, cardsButton, devCardsList,
+      phaseBadge, currentPlayerText, victoryPointsText,
       resourceText, statusText, gameLogList, debugPanelContent, winnerBanner,
       playersList,
     };
@@ -458,6 +652,8 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     const handleCity = () => inputController.setMode("upgrade-settlement");
     const handleDiscard = () => inputController.resolveDiscard();
     const handlePass = () => inputController.passTurn();
+    const handleBuyCard = () => inputController.buyDevelopmentCard();
+    const handleOpenCards = () => openCardsModal();
     const handleTrade = () => {
       const current = gameState.currentPlayer;
       setCurrentPlayerName(current.name);
@@ -471,6 +667,8 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       setIsTradeModalOpen(true);
     };
 
+    hudRefs.buyCardButton.addEventListener("click", handleBuyCard);
+    hudRefs.cardsButton.addEventListener("click", handleOpenCards);
     hudRefs.rollButton.addEventListener("click", handleRoll);
     hudRefs.settlementButton.addEventListener("click", handleSettlement);
     hudRefs.roadButton.addEventListener("click", handleRoad);
@@ -698,6 +896,44 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         isBotTurn ||
         isInitialPlacement ||
         gameState.phase !== "main-actions";
+      hudRefs.buyCardButton.disabled =
+        gameOver ||
+        isBotTurn ||
+        isInitialPlacement ||
+        currentPlayer === undefined ||
+        !gameState.canBuyDevelopmentCard(currentPlayer.id);
+      hudRefs.cardsButton.disabled =
+        gameOver ||
+        isBotTurn ||
+        isInitialPlacement ||
+        currentPlayer === undefined ||
+        currentPlayer.developmentCards.length === 0 ||
+        (gameState.phase !== "main-actions" && gameState.phase !== "roll-dice");
+
+      // Painel de cartas: mostra as do jogador humano; oculta as de bots.
+      if (currentPlayer === undefined) {
+        hudRefs.devCardsList.innerHTML = "";
+      } else if (currentPlayer.kind === "bot") {
+        hudRefs.devCardsList.innerHTML = Array.from(
+          { length: Math.max(currentPlayer.developmentCards.length, 1) },
+          () =>
+            `<div class="dev-card dev-card--unknown"><span class="dev-card__symbol">?</span></div>`,
+        ).join("");
+      } else if (currentPlayer.developmentCards.length === 0) {
+        hudRefs.devCardsList.innerHTML =
+          `<div class="dev-card dev-card--unknown"><span class="dev-card__symbol">—</span></div>`;
+      } else {
+        const counts = currentPlayer.getDevelopmentCardCounts();
+        hudRefs.devCardsList.innerHTML = (
+          Object.entries(counts) as Array<[keyof typeof counts, number]>
+        )
+          .filter(([, amount]) => amount > 0)
+          .map(
+            ([type, amount]) =>
+              `<div class="dev-card" style="position:relative" title="${escapeHtml(DEVELOPMENT_CARD_NAMES[type])}"><span class="dev-card__symbol">${DEV_CARD_SYMBOLS[type]}</span>${amount > 1 ? `<span style="position:absolute;bottom:4px;right:6px;font-size:12px;font-weight:800;color:#fcd34d;">×${amount}</span>` : ""}</div>`,
+          )
+          .join("");
+      }
     }
 
     let animationId = 0;
@@ -727,6 +963,8 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       hudRefs.discardButton.removeEventListener("click", handleDiscard);
       hudRefs.passButton.removeEventListener("click", handlePass);
       hudRefs.tradeButton.removeEventListener("click", handleTrade);
+      hudRefs.buyCardButton.removeEventListener("click", handleBuyCard);
+      hudRefs.cardsButton.removeEventListener("click", handleOpenCards);
       botController.dispose();
       inputController.dispose();
       hud.remove();
@@ -759,6 +997,19 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         otherPlayers={otherPlayers}
         onBankTrade={handleBankTrade}
         onPlayerTrade={handlePlayerTrade}
+      />
+      <DevelopmentCardsModal
+        key={isCardsModalOpen ? "cards-open" : "cards-closed"}
+        isOpen={isCardsModalOpen}
+        onClose={() => setIsCardsModalOpen(false)}
+        entries={cardModalData.entries}
+        victoryPointCards={cardModalData.victoryPointCards}
+        canPlayThisTurn={cardModalData.canPlayThisTurn}
+        deckCount={cardModalData.deckCount}
+        onPlayKnight={handlePlayKnight}
+        onPlayMonopoly={handlePlayMonopoly}
+        onPlayYearOfPlenty={handlePlayYearOfPlenty}
+        onPlayRoadBuilding={handlePlayRoadBuilding}
       />
     </>
   )

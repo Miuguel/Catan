@@ -228,6 +228,49 @@ export class GameInputController {
     }
   }
 
+  buyDevelopmentCard() {
+    if (this.gameState.isFinished()) {
+      return;
+    }
+
+    const currentPlayer = this.gameState.getCurrentPlayer();
+
+    if (currentPlayer === undefined || currentPlayer.kind === "bot") {
+      return;
+    }
+
+    if (!this.gameState.canBuyDevelopmentCard(currentPlayer.id)) {
+      this.statusMessage = "Você não pode comprar uma carta agora.";
+      return;
+    }
+
+    try {
+      const result = this.gameState.buyDevelopmentCard(currentPlayer.id);
+      // Não revelamos o tipo da carta comprada no histórico (confidencialidade).
+      this.gameState.addActionLog(
+        `${currentPlayer.name} comprou uma carta de desenvolvimento.`,
+      );
+      this.statusMessage = result.wonGame
+        ? `${currentPlayer.name} comprou uma carta e venceu a partida!`
+        : "Você comprou uma carta de desenvolvimento.";
+    } catch (error) {
+      this.statusMessage =
+        error instanceof Error ? error.message : "Falha ao comprar carta.";
+    }
+  }
+
+  setStatusMessage(message: string) {
+    this.statusMessage = message;
+  }
+
+  startRoadBuildingMode() {
+    this.mode = "build-road";
+    this.selectedRoadId = null;
+    this.selectedVertexId = null;
+    this.statusMessage =
+      "Construção de Estradas: clique para construir até 2 estradas grátis.";
+  }
+
   getStatusMessage() {
     return this.statusMessage;
   }
@@ -479,6 +522,19 @@ export class GameInputController {
           this.statusMessage =
             "Na configuração inicial, construa uma estrada antes da próxima aldeia.";
           return;
+        }
+
+        if (!isInitialPlacement) {
+          const issue =
+            this.constructionRules.describeSettlementPlacementIssue(
+              vertex.id,
+              currentPlayer.id,
+            );
+
+          if (issue !== null) {
+            this.statusMessage = issue;
+            return;
+          }
         }
 
         this.constructionRules.buildSettlement(
