@@ -1,4 +1,4 @@
-import { Board } from "../core/board/Board";
+import { Board } from "../board/Board";
 import { ConstructionCost } from "./ConstructionCost";
 import { Player } from "./Player";
 import type { ResourceInventory } from "./ResourceInventory";
