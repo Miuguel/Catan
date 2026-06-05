@@ -106,14 +106,22 @@ export const Dice: React.FC<DiceProps> = ({ finalValue, isRolling }) => {
       animRef.current = requestAnimationFrame(animate);
       return () => stopAnimation();
     } else {
-      // Não está rolando: mostrar face correta imediatamente
+      // Não está rolando: mostrar face correta imediatamente,
+      // mas fora da renderização atual para evitar efeitos em cascata.
       stopAnimation();
-      setPhase('idle');
-      setOffsetX(0);
-      setOffsetY(0);
-      setCurrentFrame(FACE_FRAMES[finalValue] ?? FACE_FRAMES[1]);
+      const immediateResetTimeout = setTimeout(() => {
+        setPhase('idle');
+        setOffsetX(0);
+        setOffsetY(0);
+        setCurrentFrame(FACE_FRAMES[finalValue] ?? FACE_FRAMES[1]);
+      }, 0);
+
+      return () => {
+        clearTimeout(immediateResetTimeout);
+        stopAnimation();
+      };
     }
-  }, [isRolling, stopAnimation]);
+  }, [isRolling, stopAnimation, finalValue]);
 
   useEffect(() => {
     if (!isRolling && phase === 'idle') {

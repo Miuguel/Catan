@@ -36,10 +36,10 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   useEffect(() => {
     if (isRolling) {
       clearAll();
-      setShowTotal(false);
 
-      // Mostrar o roller e depois fazer a sequência de timeouts
+      // Evita atualizações de estado síncronas diretamente no efeito.
       const t0 = setTimeout(() => {
+        setShowTotal(false);
         setVisible(true);
       }, 0);
 
