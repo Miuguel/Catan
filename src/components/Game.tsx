@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react";
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "../styles/game.css";
 import { Board } from "../core/board/Board";
 import { ConstructionRules } from "../core/game/ConstructionRules";
@@ -8,8 +7,9 @@ import { Player } from "../core/game/Player";
 import { ResourceDistributionService } from "../core/game/ResourceDistributionService";
 import { getResourceColor } from "../core/game/ResourceNames";
 import { BoardRenderer } from "../render/BoardRenderer";
-import { GameInputController } from "../input/GameInputController";
+import { GameInputController, type DiceRollResult } from "../input/GameInputController";
 import { TradeModal } from "./TradeModal";
+import { DiceRoller } from "./DiceRoller";
 
 interface PlayerConfig {
   name: string;
@@ -67,7 +67,11 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
   const gameInitialized = useRef(false);
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
   const [currentPlayerName, setCurrentPlayerName] = useState('');
-  const [otherPlayers, setOtherPlayers] = useState<Array<{name: string; avatarSrc: string}>>([]);
+  const [otherPlayers, setOtherPlayers] = useState<Array<{name: string; avatarSrc: string}>>([
+  ]);
+  const [isRollingDice, setIsRollingDice] = useState(false);
+  const [diceResult, setDiceResult] = useState<DiceRollResult | null>(null);
+  const inputControllerRef = useRef<GameInputController | null>(null);
 
   useEffect(() => {
     if (gameInitialized.current) return;
@@ -109,6 +113,13 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
       constructionRules,
       resourceDistributionService,
     );
+
+    inputController.setOnDiceRoll((result: DiceRollResult) => {
+      setIsRollingDice(true);
+      setDiceResult(result);
+    });
+
+    inputControllerRef.current = inputController;
 
     const hud = document.createElement("div");
     hud.className = "game-ui";
@@ -396,9 +407,22 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
     };
   }, [players, onBack]);
 
+  const handleDiceRollingComplete = () => {
+    setIsRollingDice(false);
+  };
+
   return (
     <>
       <canvas id="game" ref={canvasRef} />
+      {diceResult && (
+        <DiceRoller
+          isRolling={isRollingDice}
+          die1={diceResult.die1}
+          die2={diceResult.die2}
+          total={diceResult.total}
+          onRollingComplete={handleDiceRollingComplete}
+        />
+      )}
       <TradeModal
         isOpen={isTradeModalOpen}
         onClose={() => setIsTradeModalOpen(false)}
@@ -406,7 +430,7 @@ const Game: React.FC<GameProps> = ({ players, onBack }) => {
         otherPlayers={otherPlayers}
       />
     </>
-  );
+  )
 };
 
 export default Game;
