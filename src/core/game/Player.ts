@@ -117,9 +117,6 @@ export class Player {
     );
   }
 
-  addVictoryPoints(points: number) {
-    this.victoryPoints += points;
-  }
 
   addDevelopmentCard(card: DevelopmentCard) {
     this.developmentCards.push(card);

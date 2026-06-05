@@ -34,6 +34,8 @@ export class GameState {
   freeRoadsRemaining: number;
   pendingDiscards: Record<string, number>;
   pendingRobberVictimIds: string[];
+  longestRoadHolderId: string | null;
+  largestArmyHolderId: string | null;
   hasRolledDiceThisTurn: boolean;
   hasPlayedDevelopmentCardThisTurn: boolean;
   private initialPlacementRound: 1 | 2 | 0;
@@ -62,6 +64,8 @@ export class GameState {
     this.freeRoadsRemaining = 0;
     this.pendingDiscards = {};
     this.pendingRobberVictimIds = [];
+    this.longestRoadHolderId = null;
+    this.largestArmyHolderId = null;
     this.hasRolledDiceThisTurn = false;
     this.hasPlayedDevelopmentCardThisTurn = false;
     this.initialPlacementRound = 1;
@@ -244,6 +248,10 @@ export class GameState {
     this.pendingRobberVictimIds = [];
     this.hasRolledDiceThisTurn = false;
     this.hasPlayedDevelopmentCardThisTurn = false;
+
+    // Vitória no início do próprio turno: cobre o caso de um jogador ter
+    // atingido 10 PV por um bônus transferido durante o turno de um adversário.
+    this.refreshScores();
   }
 
   setWinner(playerId: string) {
@@ -253,17 +261,180 @@ export class GameState {
     this.addActionLog(`${winner?.name ?? playerId} venceu a partida.`);
   }
 
-  awardVictoryPoints(playerId: string, points: number) {
+  // ---- Pontuação centralizada (Fase 10) ----
+
+  /** Pontos de vitória de um jogador: aldeias, cidades, cartas de PV e bônus. */
+  computeVictoryPoints(playerId: string): number {
     const player = this.getPlayerById(playerId);
 
     if (player === undefined) {
-      throw new Error(`Player ${playerId} not found`);
+      return 0;
     }
 
-    player.addVictoryPoints(points);
+    let points = 0;
 
-    if (player.victoryPoints >= 10 && this.currentPlayer?.id === playerId) {
-      this.setWinner(playerId);
+    this.board.settlements.forEach((settlement) => {
+      if (settlement.ownerId === playerId) {
+        points += settlement.level === "city" ? 2 : 1;
+      }
+    });
+
+    points += player.countVictoryPointCards();
+
+    if (this.longestRoadHolderId === playerId) {
+      points += 2;
+    }
+
+    if (this.largestArmyHolderId === playerId) {
+      points += 2;
+    }
+
+    return points;
+  }
+
+  /** Maior sequência de estradas do jogador (DFS, sem repetir aresta). */
+  getLongestRoadLength(playerId: string): number {
+    const playerRoads = this.board.roads.filter(
+      (road) => road.ownerId === playerId,
+    );
+
+    if (playerRoads.length === 0) {
+      return 0;
+    }
+
+    const adjacency = new Map<string, Array<{ roadId: string; to: string }>>();
+    const link = (from: string, to: string, roadId: string) => {
+      if (!adjacency.has(from)) {
+        adjacency.set(from, []);
+      }
+      adjacency.get(from)!.push({ roadId, to });
+    };
+
+    playerRoads.forEach((road) => {
+      link(road.vertexAId, road.vertexBId, road.id);
+      link(road.vertexBId, road.vertexAId, road.id);
+    });
+
+    // Um vértice com construção adversária interrompe a passagem.
+    const blocksPassThrough = (vertexId: string) => {
+      const settlement = this.board.getSettlementAtVertex(vertexId);
+      return settlement !== undefined && settlement.ownerId !== playerId;
+    };
+
+    const visitedEdges = new Set<string>();
+    let best = 0;
+
+    const dfs = (vertexId: string, length: number) => {
+      if (length > best) {
+        best = length;
+      }
+
+      if (blocksPassThrough(vertexId)) {
+        return; // pode terminar aqui, mas não atravessar
+      }
+
+      for (const edge of adjacency.get(vertexId) ?? []) {
+        if (visitedEdges.has(edge.roadId)) {
+          continue;
+        }
+
+        visitedEdges.add(edge.roadId);
+        dfs(edge.to, length + 1);
+        visitedEdges.delete(edge.roadId);
+      }
+    };
+
+    for (const startVertex of adjacency.keys()) {
+      dfs(startVertex, 0);
+    }
+
+    return best;
+  }
+
+  private updateLongestRoad() {
+    const MIN_LENGTH = 5;
+    const previousHolder = this.longestRoadHolderId;
+    const previousLength =
+      previousHolder !== null
+        ? this.getLongestRoadLength(previousHolder)
+        : 0;
+
+    // O detentor mantém o título com >= 5; só perde se quebrar ou for superado.
+    let bestId =
+      previousHolder !== null && previousLength >= MIN_LENGTH
+        ? previousHolder
+        : null;
+    let bestLength = bestId !== null ? previousLength : MIN_LENGTH - 1;
+
+    this.players.forEach((player) => {
+      const length = this.getLongestRoadLength(player.id);
+
+      if (length >= MIN_LENGTH && length > bestLength) {
+        bestId = player.id;
+        bestLength = length;
+      }
+    });
+
+    this.longestRoadHolderId = bestId;
+
+    if (bestId !== previousHolder) {
+      if (bestId !== null) {
+        this.addActionLog(
+          `${this.getPlayerById(bestId)?.name ?? bestId} conquistou a Maior Estrada (2 PV).`,
+        );
+      } else {
+        this.addActionLog("A Maior Estrada ficou sem dono.");
+      }
+    }
+  }
+
+  private updateLargestArmy() {
+    const MIN_KNIGHTS = 3;
+    const previousHolder = this.largestArmyHolderId;
+    const previousCount =
+      previousHolder !== null
+        ? (this.getPlayerById(previousHolder)?.playedKnights ?? 0)
+        : 0;
+
+    let bestId =
+      previousHolder !== null && previousCount >= MIN_KNIGHTS
+        ? previousHolder
+        : null;
+    let bestCount = bestId !== null ? previousCount : MIN_KNIGHTS - 1;
+
+    this.players.forEach((player) => {
+      if (player.playedKnights >= MIN_KNIGHTS && player.playedKnights > bestCount) {
+        bestId = player.id;
+        bestCount = player.playedKnights;
+      }
+    });
+
+    this.largestArmyHolderId = bestId;
+
+    if (bestId !== previousHolder && bestId !== null) {
+      this.addActionLog(
+        `${this.getPlayerById(bestId)?.name ?? bestId} conquistou o Maior Exército (2 PV).`,
+      );
+    }
+  }
+
+  /** Recalcula bônus e PV de todos e declara vencedor se o atual chegou a 10. */
+  refreshScores() {
+    this.updateLongestRoad();
+    this.updateLargestArmy();
+
+    this.players.forEach((player) => {
+      player.victoryPoints = this.computeVictoryPoints(player.id);
+    });
+
+    const current = this.currentPlayer;
+
+    if (
+      this.winnerId === null &&
+      current !== undefined &&
+      current.victoryPoints >= 10
+    ) {
+      this.setWinner(current.id);
     }
   }
 
@@ -594,7 +765,7 @@ export class GameState {
 
     // Carta de Ponto de Vitória conta imediatamente (pode vencer no mesmo turno).
     if (drawnType === "victory-point") {
-      this.awardVictoryPoints(playerId, 1);
+      this.refreshScores();
     }
 
     return { type: drawnType, wonGame: this.winnerId === playerId };
@@ -644,6 +815,7 @@ export class GameState {
     this.markDevelopmentCardPlayed();
     player.removeDevelopmentCard("knight", this.turnNumber);
     player.playedKnights += 1;
+    this.refreshScores();
     this.phase = "robber";
   }
 

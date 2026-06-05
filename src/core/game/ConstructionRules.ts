@@ -234,7 +234,8 @@ export class ConstructionRules {
 
     this.gameState.getPlayerById(playerId)?.consumeSettlementPiece();
     this.board.placeSettlement(settlement);
-    this.gameState.awardVictoryPoints(playerId, 1);
+    // Recalcula PV (e a Maior Estrada, pois a aldeia pode cortar a de um adversário).
+    this.gameState.refreshScores();
 
     return settlement;
   }
@@ -267,6 +268,7 @@ export class ConstructionRules {
 
     this.gameState.getPlayerById(playerId)?.consumeRoadPiece();
     road.ownerId = playerId;
+    this.gameState.refreshScores();
 
     return road;
   }
@@ -286,7 +288,7 @@ export class ConstructionRules {
     this.gameState.getPlayerById(playerId)?.consumeCityPiece();
     this.gameState.getPlayerById(playerId)?.releaseSettlementPiece();
     settlement.upgradeToCity();
-    this.gameState.awardVictoryPoints(playerId, 1);
+    this.gameState.refreshScores();
 
     return settlement;
   }
