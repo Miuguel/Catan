@@ -6,12 +6,34 @@ interface PlayerOption {
   avatarSrc: string;
 }
 
+export interface TradeResult {
+  ok: boolean;
+  message: string;
+}
+
 interface TradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentPlayerName: string;
   otherPlayers: PlayerOption[];
+  onBankTrade: (
+    offering: Record<string, number>,
+    requesting: Record<string, number>,
+  ) => TradeResult;
+  onPlayerTrade: (
+    targetName: string,
+    offering: Record<string, number>,
+    requesting: Record<string, number>,
+  ) => TradeResult;
 }
+
+const EMPTY_RESOURCES: Record<string, number> = {
+  Tijolo: 0,
+  Madeira: 0,
+  Lã: 0,
+  Trigo: 0,
+  Minério: 0,
+};
 
 const RESOURCES = ['Tijolo', 'Madeira', 'Lã', 'Trigo', 'Minério'];
 const RESOURCE_ICONS = {
@@ -26,26 +48,18 @@ const RESOURCE_ICONS = {
 export const TradeModal: React.FC<TradeModalProps> = ({
   isOpen,
   onClose,
-  otherPlayers
+  otherPlayers,
+  onBankTrade,
+  onPlayerTrade,
 }) => {
   const [activeTab, setActiveTab] = useState<'player' | 'bank'>('player');
   const [selectedPlayer, setSelectedPlayer] = useState(otherPlayers.length > 0 ? otherPlayers[0].name : '');
-  const [offering, setOffering] = useState<Record<string, number>>({
-    'Tijolo': 0,
-    'Madeira': 0,
-    'Lã': 0,
-    'Trigo': 0,
-    'Minério': 0
-  });
-  const [requesting, setRequesting] = useState<Record<string, number>>({
-    'Tijolo': 0,
-    'Madeira': 0,
-    'Lã': 0,
-    'Trigo': 0,
-    'Minério': 0
-  });
+  const [offering, setOffering] = useState<Record<string, number>>({ ...EMPTY_RESOURCES });
+  const [requesting, setRequesting] = useState<Record<string, number>>({ ...EMPTY_RESOURCES });
+  const [feedback, setFeedback] = useState<TradeResult | null>(null);
 
   const handleOfferingChange = (resource: string, value: number) => {
+    setFeedback(null);
     setOffering(prev => ({
       ...prev,
       [resource]: Math.max(0, value)
@@ -53,6 +67,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({
   };
 
   const handleRequestingChange = (resource: string, value: number) => {
+    setFeedback(null);
     setRequesting(prev => ({
       ...prev,
       [resource]: Math.max(0, value)
@@ -73,8 +88,27 @@ export const TradeModal: React.FC<TradeModalProps> = ({
       .join(', ') || 'Nada';
   };
 
+  const resetResources = () => {
+    setOffering({ ...EMPTY_RESOURCES });
+    setRequesting({ ...EMPTY_RESOURCES });
+  };
+
   const handleSubmit = () => {
-    onClose();
+    if (activeTab === 'player' && !selectedPlayer) {
+      setFeedback({ ok: false, message: 'Selecione um jogador para negociar.' });
+      return;
+    }
+
+    const result =
+      activeTab === 'bank'
+        ? onBankTrade(offering, requesting)
+        : onPlayerTrade(selectedPlayer, offering, requesting);
+
+    setFeedback(result);
+
+    if (result.ok) {
+      resetResources();
+    }
   };
 
   if (!isOpen) return null;
@@ -90,13 +124,19 @@ export const TradeModal: React.FC<TradeModalProps> = ({
         <div className="trade-modal__tabs">
           <button
             className={`trade-modal__tab ${activeTab === 'player' ? 'active' : ''}`}
-            onClick={() => setActiveTab('player')}
+            onClick={() => {
+              setFeedback(null);
+              setActiveTab('player');
+            }}
           >
             JOGADOR
           </button>
           <button
             className={`trade-modal__tab ${activeTab === 'bank' ? 'active' : ''}`}
-            onClick={() => setActiveTab('bank')}
+            onClick={() => {
+              setFeedback(null);
+              setActiveTab('bank');
+            }}
           >
             BANCO
           </button>
@@ -207,9 +247,17 @@ export const TradeModal: React.FC<TradeModalProps> = ({
           </div>
         </div>
 
+        {feedback && (
+          <div
+            className={`trade-modal__feedback ${feedback.ok ? 'trade-modal__feedback--ok' : 'trade-modal__feedback--error'}`}
+          >
+            {feedback.message}
+          </div>
+        )}
+
         <div className="trade-modal__actions">
           <button className="trade-modal__btn-submit" onClick={handleSubmit}>
-            ✓ ENVIAR OFERTA
+            {activeTab === 'bank' ? '✓ TROCAR COM O BANCO' : '✓ ENVIAR OFERTA'}
           </button>
           <button className="trade-modal__btn-cancel" onClick={onClose}>
             CANCELAR

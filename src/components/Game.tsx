@@ -2,15 +2,19 @@ import React, { useState, useRef, useEffect } from "react";
 import type { FC } from "react";
 import "../styles/game.css";
 import { Board } from "../core/board/Board";
+import { BotController } from "../core/game/BotController";
 import { ConstructionRules } from "../core/game/ConstructionRules";
 import { GameState } from "../core/game/GameState";
 import { Player } from "../core/game/Player";
 import { ResourceDistributionService } from "../core/game/ResourceDistributionService";
 import { getResourceColor } from "../core/game/ResourceNames";
 import type { ResourceInventory } from "../core/game/ResourceInventory";
+import type { ResourceType } from "../core/game/ResourceType";
+import { shouldBotAcceptTrade } from "../core/game/TradeService";
 import { BoardRenderer } from "../render/BoardRenderer";
 import { GameInputController, type DiceRollResult } from "../input/GameInputController";
 import { TradeModal } from "./TradeModal";
+import type { TradeResult } from "./TradeModal";
 import { DiceRoller } from "./DiceRoller";
 
 interface PlayerConfig {
@@ -90,9 +94,47 @@ function formatResources(resources: Partial<ResourceInventory>) {
     .join(" | ");
 }
 
+// Os rótulos do TradeModal usam acentos; mapeamos para o tipo interno.
+const TRADE_LABEL_TO_RESOURCE: Record<string, ResourceType> = {
+  Tijolo: "brick",
+  Madeira: "lumber",
+  Lã: "wool",
+  Trigo: "grain",
+  Minério: "ore",
+};
+
+function labelRecordToInventory(
+  record: Record<string, number>,
+): Partial<ResourceInventory> {
+  const inventory: Partial<ResourceInventory> = {};
+
+  Object.entries(record).forEach(([label, amount]) => {
+    const resourceType = TRADE_LABEL_TO_RESOURCE[label];
+
+    if (resourceType !== undefined && amount > 0) {
+      inventory[resourceType] = amount;
+    }
+  });
+
+  return inventory;
+}
+
+function formatTradeList(resources: Partial<ResourceInventory>) {
+  return (
+    Object.entries(RESOURCE_LABELS) as Array<[keyof ResourceInventory, string]>
+  )
+    .filter(([resourceType]) => (resources[resourceType] ?? 0) > 0)
+    .map(([resourceType, label]) => `${resources[resourceType]} ${label}`)
+    .join(", ");
+}
+
 const Game: FC<GameProps> = ({ players, onBack }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameInitialized = useRef(false);
+  const gameContextRef = useRef<{
+    gameState: GameState;
+    players: Player[];
+  } | null>(null);
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
   const [currentPlayerName, setCurrentPlayerName] = useState('');
   const [otherPlayers, setOtherPlayers] = useState<Array<{name: string; avatarSrc: string}>>([
@@ -100,6 +142,117 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
   const [isRollingDice, setIsRollingDice] = useState(false);
   const [diceResult, setDiceResult] = useState<DiceRollResult | null>(null);
   const inputControllerRef = useRef<GameInputController | null>(null);
+
+  const handleBankTrade = (
+    offering: Record<string, number>,
+    requesting: Record<string, number>,
+  ): TradeResult => {
+    const context = gameContextRef.current;
+
+    if (context === null) {
+      return { ok: false, message: "Jogo não inicializado." };
+    }
+
+    const { gameState } = context;
+
+    if (gameState.phase !== "main-actions") {
+      return { ok: false, message: "Só é possível negociar na fase principal." };
+    }
+
+    const current = gameState.currentPlayer;
+
+    if (current === undefined) {
+      return { ok: false, message: "Nenhum jogador ativo." };
+    }
+
+    const offered = labelRecordToInventory(offering);
+    const requested = labelRecordToInventory(requesting);
+
+    try {
+      gameState.tradeWithBankBundle(current.id, offered, requested);
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Falha na troca.",
+      };
+    }
+
+    gameState.addActionLog(
+      `${current.name} trocou ${formatTradeList(offered)} por ${formatTradeList(requested)} com o banco.`,
+    );
+
+    return { ok: true, message: "Troca com o banco realizada!" };
+  };
+
+  const handlePlayerTrade = (
+    targetName: string,
+    offering: Record<string, number>,
+    requesting: Record<string, number>,
+  ): TradeResult => {
+    const context = gameContextRef.current;
+
+    if (context === null) {
+      return { ok: false, message: "Jogo não inicializado." };
+    }
+
+    const { gameState, players } = context;
+
+    if (gameState.phase !== "main-actions") {
+      return { ok: false, message: "Só é possível negociar na fase principal." };
+    }
+
+    const current = gameState.currentPlayer;
+
+    if (current === undefined) {
+      return { ok: false, message: "Nenhum jogador ativo." };
+    }
+
+    const target = players.find(
+      (player) => player.id !== current.id && player.name === targetName,
+    );
+
+    if (target === undefined) {
+      return { ok: false, message: "Selecione um jogador válido." };
+    }
+
+    const offered = labelRecordToInventory(offering);
+    const requested = labelRecordToInventory(requesting);
+
+    if (Object.keys(offered).length === 0) {
+      return { ok: false, message: "Você precisa oferecer pelo menos um recurso." };
+    }
+
+    if (Object.keys(requested).length === 0) {
+      return { ok: false, message: "Você precisa pedir pelo menos um recurso." };
+    }
+
+    if (!current.canAfford(offered)) {
+      return { ok: false, message: "Você não possui os recursos oferecidos." };
+    }
+
+    // O bot recebe o que é oferecido e entrega o que é pedido.
+    if (target.kind === "bot" && !shouldBotAcceptTrade(target, offered, requested)) {
+      gameState.addActionLog(
+        `${target.name} recusou a proposta de ${current.name}.`,
+      );
+      return { ok: false, message: `${target.name} recusou a proposta.` };
+    }
+
+    try {
+      gameState.tradeBetweenPlayers(current.id, target.id, offered, requested);
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Falha na troca.",
+      };
+    }
+
+    gameState.addActionLog(
+      `${current.name} deu ${formatTradeList(offered)} e recebeu ${formatTradeList(requested)} de ${target.name}.`,
+    );
+
+    return { ok: true, message: `${target.name} aceitou a troca!` };
+  };
 
   useEffect(() => {
     if (gameInitialized.current) return;
@@ -132,8 +285,15 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     players.forEach((p, i) => { avatarMap[`player-${i + 1}`] = p.avatarSrc; });
 
     const gameState = new GameState(board, gamePlayers);
+    gameContextRef.current = { gameState, players: gamePlayers };
     const constructionRules = new ConstructionRules(board, gameState);
     const resourceDistributionService = new ResourceDistributionService(gameState);
+    const botController = new BotController(
+      board,
+      gameState,
+      constructionRules,
+      resourceDistributionService,
+    );
     const inputController = new GameInputController(
       canvas,
       board,
@@ -419,6 +579,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       const winner = gameState.getWinner();
       const isInitialPlacement = gameState.isInitialPlacementActive();
       const initialStep = gameState.getInitialPlacementStep();
+      const isBotTurn = currentPlayer?.kind === "bot";
 
       hudRefs.phaseBadge.textContent = isInitialPlacement
         ? `setup · ${initialStep ?? "-"}`
@@ -458,7 +619,9 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         : "-";
       hudRefs.statusText.textContent = winner
         ? `${winner.name} venceu a partida!`
-        : inputController.getStatusMessage();
+        : isBotTurn
+          ? `${currentPlayer.name} está jogando automaticamente.`
+          : inputController.getStatusMessage();
       hudRefs.gameLogList.replaceChildren(
         ...gameState.getActionLog().map((action) => {
           const item = document.createElement("div");
@@ -499,26 +662,42 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       }).join("");
 
       const gameOver = gameState.isFinished();
-      hudRefs.rollButton.disabled = gameOver || gameState.phase !== "roll-dice";
+      hudRefs.rollButton.disabled =
+        gameOver || isBotTurn || gameState.phase !== "roll-dice";
       hudRefs.settlementButton.disabled = isInitialPlacement
         ? initialStep !== "settlement" ||
-          !gameState.canCurrentPlayerPlaceInitialSettlement()
+          !gameState.canCurrentPlayerPlaceInitialSettlement() ||
+          isBotTurn
         : gameOver ||
+          isBotTurn ||
           gameState.phase !== "main-actions" ||
           !gameState.canCurrentPlayerBuildSettlement();
       hudRefs.roadButton.disabled = isInitialPlacement
-        ? initialStep !== "road" || !gameState.canCurrentPlayerPlaceInitialRoad()
+        ? initialStep !== "road" ||
+          !gameState.canCurrentPlayerPlaceInitialRoad() ||
+          isBotTurn
         : gameOver ||
+          isBotTurn ||
           gameState.phase !== "main-actions" ||
           !gameState.canCurrentPlayerBuildRoad();
       hudRefs.cityButton.disabled =
         gameOver ||
+        isBotTurn ||
         isInitialPlacement ||
         gameState.phase !== "main-actions" ||
         !gameState.canCurrentPlayerUpgradeSettlement();
-      hudRefs.discardButton.disabled = gameOver || gameState.phase !== "discard";
-      hudRefs.passButton.disabled = gameOver || isInitialPlacement || gameState.phase !== "main-actions";
-      hudRefs.tradeButton.disabled = gameOver || isInitialPlacement || gameState.phase !== "main-actions";
+      hudRefs.discardButton.disabled =
+        gameOver || isBotTurn || gameState.phase !== "discard";
+      hudRefs.passButton.disabled =
+        gameOver ||
+        isBotTurn ||
+        isInitialPlacement ||
+        gameState.phase !== "main-actions";
+      hudRefs.tradeButton.disabled =
+        gameOver ||
+        isBotTurn ||
+        isInitialPlacement ||
+        gameState.phase !== "main-actions";
     }
 
     let animationId = 0;
@@ -531,6 +710,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       // 2. Tabuleiro
       boardRenderer.render(inputController.getRenderState());
 
+      botController.tick();
       renderHud();
       animationId = requestAnimationFrame(gameLoop);
     }
@@ -547,8 +727,10 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       hudRefs.discardButton.removeEventListener("click", handleDiscard);
       hudRefs.passButton.removeEventListener("click", handlePass);
       hudRefs.tradeButton.removeEventListener("click", handleTrade);
+      botController.dispose();
       inputController.dispose();
       hud.remove();
+      gameContextRef.current = null;
       gameInitialized.current = false;
     };
   }, [players, onBack]);
@@ -570,10 +752,13 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         />
       )}
       <TradeModal
+        key={isTradeModalOpen ? "trade-open" : "trade-closed"}
         isOpen={isTradeModalOpen}
         onClose={() => setIsTradeModalOpen(false)}
         currentPlayerName={currentPlayerName}
         otherPlayers={otherPlayers}
+        onBankTrade={handleBankTrade}
+        onPlayerTrade={handlePlayerTrade}
       />
     </>
   )

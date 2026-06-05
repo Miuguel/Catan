@@ -340,6 +340,102 @@ export class GameState {
     player.addResources(requestedResources);
   }
 
+  private totalResourceCount(resources: Partial<ResourceInventory>) {
+    return (Object.keys(resources) as ResourceType[]).reduce(
+      (total, resourceType) => total + (resources[resourceType] ?? 0),
+      0,
+    );
+  }
+
+  private assertNoSharedResource(
+    offered: Partial<ResourceInventory>,
+    requested: Partial<ResourceInventory>,
+  ) {
+    const sharesResource = (Object.keys(offered) as ResourceType[]).some(
+      (resourceType) =>
+        (offered[resourceType] ?? 0) > 0 && (requested[resourceType] ?? 0) > 0,
+    );
+
+    if (sharesResource) {
+      throw new Error("Não troque um recurso por ele mesmo.");
+    }
+  }
+
+  tradeWithBankBundle(
+    playerId: string,
+    offered: Partial<ResourceInventory>,
+    requested: Partial<ResourceInventory>,
+  ) {
+    const player = this.getPlayerById(playerId);
+
+    if (player === undefined) {
+      throw new Error("Jogador não encontrado.");
+    }
+
+    const totalOffered = this.totalResourceCount(offered);
+    const totalRequested = this.totalResourceCount(requested);
+
+    if (totalOffered === 0 || totalRequested === 0) {
+      throw new Error("Defina o que oferecer e o que pedir.");
+    }
+
+    if (totalOffered !== totalRequested * 4) {
+      throw new Error(
+        "A troca com o banco é 4:1. Ofereça 4 recursos para cada 1 pedido.",
+      );
+    }
+
+    this.assertNoSharedResource(offered, requested);
+
+    if (!player.canAfford(offered)) {
+      throw new Error("Você não possui os recursos oferecidos.");
+    }
+
+    if (!this.canBankAfford(requested)) {
+      throw new Error("O banco não possui os recursos pedidos.");
+    }
+
+    player.spendResources(offered);
+    this.depositResourcesToBank(offered);
+    this.withdrawResourcesFromBank(requested);
+    player.addResources(requested);
+  }
+
+  tradeBetweenPlayers(
+    fromPlayerId: string,
+    toPlayerId: string,
+    offered: Partial<ResourceInventory>,
+    requested: Partial<ResourceInventory>,
+  ) {
+    const fromPlayer = this.getPlayerById(fromPlayerId);
+    const toPlayer = this.getPlayerById(toPlayerId);
+
+    if (fromPlayer === undefined || toPlayer === undefined) {
+      throw new Error("Jogador não encontrado.");
+    }
+
+    if (this.totalResourceCount(offered) === 0) {
+      throw new Error("Você precisa oferecer pelo menos um recurso.");
+    }
+
+    if (this.totalResourceCount(requested) === 0) {
+      throw new Error("Você precisa pedir pelo menos um recurso.");
+    }
+
+    if (!fromPlayer.canAfford(offered)) {
+      throw new Error("Você não possui os recursos oferecidos.");
+    }
+
+    if (!toPlayer.canAfford(requested)) {
+      throw new Error("O outro jogador não possui os recursos pedidos.");
+    }
+
+    fromPlayer.spendResources(offered);
+    toPlayer.addResources(offered);
+    toPlayer.spendResources(requested);
+    fromPlayer.addResources(requested);
+  }
+
   canCurrentPlayerBuildRoad() {
     return (
       this.currentPlayer?.canBuildRoadPiece() === true &&
