@@ -10,6 +10,8 @@ export type PieceInventory = {
   cities: number;
 };
 
+export type PlayerKind = "human" | "bot";
+
 export function createInitialPieceInventory(): PieceInventory {
   return {
     roads: 15,
@@ -21,6 +23,7 @@ export function createInitialPieceInventory(): PieceInventory {
 export class Player {
   id: string;
   name: string;
+  kind: PlayerKind;
   resources: ResourceInventory;
   pieces: PieceInventory;
   victoryPoints: number;
@@ -29,6 +32,7 @@ export class Player {
   constructor(
     id: string,
     name: string,
+    kind: PlayerKind = "human",
     resources: ResourceInventory = createEmptyResourceInventory(),
     victoryPoints = 0,
     developmentCards: string[] = [],
@@ -36,6 +40,7 @@ export class Player {
   ) {
     this.id = id;
     this.name = name;
+    this.kind = kind;
     this.resources = cloneResourceInventory(resources);
     this.pieces = { ...pieces };
     this.victoryPoints = victoryPoints;

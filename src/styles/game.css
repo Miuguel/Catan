@@ -539,6 +539,13 @@ canvas {
   line-height: 1;
 }
 
+.player-card__kind {
+  color: #93c5fd;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
 .player-card__pieces {
   color: #cbd5e1;
   font-size: 10px;

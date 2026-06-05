@@ -15,6 +15,7 @@ import { TradeModal } from "./TradeModal";
 interface PlayerConfig {
   name: string;
   avatarSrc: string;
+  kind: "human" | "bot";
 }
 
 interface GameProps {
@@ -118,7 +119,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
 
     // Cria jogadores dinamicamente (adaptável para N jogadores)
     const gamePlayers = players.length > 0
-      ? players.map((p, i) => new Player(`player-${i + 1}`, p.name || `Jogador ${i + 1}`))
+      ? players.map((p, i) => new Player(`player-${i + 1}`, p.name || `Jogador ${i + 1}`, p.kind))
       : [new Player("player-1", "Jogador 1"), new Player("player-2", "Jogador 2")];
 
     // Mapa de id -> avatarSrc para uso no painel
@@ -344,7 +345,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
           return `
             <div class="debug-panel__player">
               <span>${escapeHtml(player.name)}</span>
-              <small>PV ${player.victoryPoints} | Recursos ${player.getTotalResources()} | E ${playerRoadCount} | A ${playerSettlementCount} | C ${playerCityCount}</small>
+              <small>${player.kind === "bot" ? "BOT" : "HUMANO"} | PV ${player.victoryPoints} | Recursos ${player.getTotalResources()} | E ${playerRoadCount} | A ${playerSettlementCount} | C ${playerCityCount}</small>
               <small>Estoque E ${player.pieces.roads} | A ${player.pieces.settlements} | C ${player.pieces.cities}</small>
               <small>${formatResources(player.resources)}</small>
             </div>
@@ -477,6 +478,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
             </div>
             <div class="player-card__info">
               <span class="player-card__name" style="color:${isActive ? color : "#f1f5f9"}">${playerNameUpper}</span>
+              <span class="player-card__kind">${p.kind === "bot" ? "BOT" : "HUMANO"}</span>
               <span class="player-card__vp">${p.victoryPoints}</span>
               <span class="player-card__pieces">E ${p.pieces.roads} · A ${p.pieces.settlements} · C ${p.pieces.cities}</span>
             </div>

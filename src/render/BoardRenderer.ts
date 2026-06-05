@@ -20,6 +20,8 @@ export class BoardRenderer {
   private readonly playerColors: Record<string, string> = {
     "player-1": "#2563eb",
     "player-2": "#dc2626",
+    "player-3": "#f59e0b",
+    "player-4": "#22c55e",
   };
 
   private readonly tileImageMap: Record<string, string> = {
