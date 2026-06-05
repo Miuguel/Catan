@@ -25,7 +25,8 @@ canvas {
 .resource-rack,
 .action-bar,
 .status-toast,
-.game-log {
+.game-log,
+.debug-panel {
   pointer-events: auto;
 }
 
@@ -140,6 +141,14 @@ canvas {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.piece-stock {
+  padding-left: 4px;
+  color: #bfdbfe;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .construction-costs {
   position: fixed;
   left: 50%;
@@ -251,7 +260,8 @@ canvas {
   border: 1px solid rgba(148, 163, 184, 0.22);
   background: rgba(8, 14, 20, 0.74);
   color: #e5e7eb;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .game-log__title {
@@ -271,6 +281,95 @@ canvas {
   color: #d1d5db;
   font-size: 12px;
   line-height: 1.35;
+}
+
+.debug-panel {
+  position: fixed;
+  left: 14px;
+  right: auto;
+  top: auto;
+  bottom: 86px;
+  width: 320px;
+  max-height: min(300px, calc(100vh - 360px));
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(8, 14, 20, 0.78);
+  color: #e5e7eb;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.35;
+  z-index: 6;
+}
+
+.debug-panel__title {
+  margin-bottom: 8px;
+  color: #93c5fd;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.debug-panel__content {
+  display: grid;
+  gap: 10px;
+}
+
+.debug-panel__grid {
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) minmax(0, 1.4fr);
+  gap: 5px 10px;
+}
+
+.debug-panel__grid span,
+.debug-panel__subtitle {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.debug-panel__grid strong {
+  min-width: 0;
+  color: #f8fafc;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.debug-panel__section {
+  display: grid;
+  gap: 5px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.debug-panel__mono {
+  color: #cbd5e1;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.debug-panel__player {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.debug-panel__player span {
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.debug-panel__player small {
+  color: #cbd5e1;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  overflow-wrap: anywhere;
 }
 
 /* .winner-banner {
@@ -335,6 +434,15 @@ canvas {
     bottom: 156px;
     width: min(280px, calc(100% - 20px));
     max-height: 150px;
+  }
+
+  .debug-panel {
+    left: 10px;
+    right: auto;
+    top: auto;
+    bottom: 86px;
+    width: min(320px, calc(100% - 20px));
+    max-height: 170px;
   }
 }
 
@@ -429,6 +537,13 @@ canvas {
   font-weight: 700;
   color: #f1f5f9;
   line-height: 1;
+}
+
+.player-card__pieces {
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .player-card__star {

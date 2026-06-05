@@ -10,6 +10,35 @@ type Point = {
   y: number;
 };
 
+const TILE_TYPES: TileType[] = [
+  "brick",
+  "brick",
+  "brick",
+  "lumber",
+  "lumber",
+  "lumber",
+  "lumber",
+  "wool",
+  "wool",
+  "wool",
+  "wool",
+  "grain",
+  "grain",
+  "grain",
+  "grain",
+  "ore",
+  "ore",
+  "ore",
+  "desert",
+];
+
+const NUMBER_TOKENS = [
+  2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12,
+];
+
+const HIGH_PRODUCTION_TOKENS = new Set([6, 8]);
+const MAX_TILE_GENERATION_ATTEMPTS = 100;
+
 export class Board {
   hexes: Hex[];
   tiles: Tile[];
@@ -83,32 +112,29 @@ export class Board {
   }
 
   private generateTiles() {
-    const resources: TileType[] = this.shuffleArray([
-      "brick",
-      "brick",
-      "brick",
-      "lumber",
-      "lumber",
-      "lumber",
-      "lumber",
-      "wool",
-      "wool",
-      "wool",
-      "wool",
-      "grain",
-      "grain",
-      "grain",
-      "grain",
-      "ore",
-      "ore",
-      "ore",
-      "desert",
-    ]);
-    const numbers = this.shuffleArray([
-      2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12,
-    ]);
+    let generatedTiles: Tile[] = [];
 
-    this.tiles = this.hexes.map((hex) => {
+    for (
+      let attempt = 1;
+      attempt <= MAX_TILE_GENERATION_ATTEMPTS;
+      attempt += 1
+    ) {
+      generatedTiles = this.createRandomTiles();
+
+      if (!this.hasAdjacentHighProductionTokens(generatedTiles)) {
+        this.tiles = generatedTiles;
+        return;
+      }
+    }
+
+    this.tiles = generatedTiles;
+  }
+
+  private createRandomTiles() {
+    const resources: TileType[] = this.shuffleArray(TILE_TYPES);
+    const numbers = this.shuffleArray(NUMBER_TOKENS);
+
+    return this.hexes.map((hex) => {
       const corners = this.getHexCorners(hex);
       const vertexIds = corners.map((point) => this.getVertexKey(point));
       const type = resources.shift() ?? "desert";
@@ -119,6 +145,39 @@ export class Board {
 
       const numberToken = numbers.shift() ?? null;
       return new Tile(hex.q, hex.r, type, numberToken, vertexIds);
+    });
+  }
+
+  private hasAdjacentHighProductionTokens(tiles: Tile[]) {
+    return tiles.some((tile) => {
+      if (
+        tile.numberToken === null ||
+        !HIGH_PRODUCTION_TOKENS.has(tile.numberToken)
+      ) {
+        return false;
+      }
+
+      return this.getAdjacentTiles(tile, tiles).some(
+        (adjacentTile) =>
+          adjacentTile.numberToken !== null &&
+          HIGH_PRODUCTION_TOKENS.has(adjacentTile.numberToken),
+      );
+    });
+  }
+
+  private getAdjacentTiles(tile: Tile, tiles: Tile[]) {
+    return tiles.filter((candidate) => {
+      const dq = candidate.q - tile.q;
+      const dr = candidate.r - tile.r;
+
+      return (
+        (dq === 1 && dr === 0) ||
+        (dq === 1 && dr === -1) ||
+        (dq === 0 && dr === -1) ||
+        (dq === -1 && dr === 0) ||
+        (dq === -1 && dr === 1) ||
+        (dq === 0 && dr === 1)
+      );
     });
   }
 
@@ -389,12 +448,6 @@ export class Board {
 
       return road !== undefined && road.ownerId === playerId;
     });
-
-    if (!hasPlayerRoad && settlement !== undefined) {
-      console.debug(
-        `Vertex ${vertexId} has settlement with owner ${settlement.ownerId} (looking for ${playerId}), no roads connected`,
-      );
-    }
 
     return hasPlayerRoad;
   }

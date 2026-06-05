@@ -28,13 +28,10 @@ const Menu: React.FC<MenuProps> = ({ onPlay }) => {
     onPlay();
   }, [onPlay]);
 
-  const handleOptions = useCallback((): void => {
-    console.log("[Menu] Botão 'Opções' clicado — abrir configurações.");
-  }, []);
+  const handleOptions = useCallback((): void => {}, []);
 
   const handleExit = useCallback((): void => {
     alert("Jogo encerrado. Obrigado por jogar!");
-    console.log("[Menu] Botão 'Sair' clicado — jogo encerrado.");
   }, []);
 
   // ─── Configuração dos Botões ────────────────────────────────────────────────
