@@ -2,19 +2,21 @@ import { useState, useCallback } from "react";
 import { Menu, PlayerSelection, Game, BackgroundMusic } from "./components";
 import HoverSound from "./components/HoverSound";
 import ClickSound from "./components/ClickSound";
+import type { PlayerConfig } from "./components/PlayerSelection";
 
 type Screen = "menu" | "playerSelection" | "game";
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("menu");
-  const [playerNames, setPlayerNames] = useState<[string, string]>(["", ""]);
+  const [players, setPlayers] = useState<PlayerConfig[]>([]);
+
   const [soundEnabled, setSoundEnabled] = useState<boolean>(false);
 
   const goToMenu = useCallback(() => setCurrentScreen("menu"), []);
   const goToPlayerSelection = useCallback(() => setCurrentScreen("playerSelection"), []);
 
-  const handleConfirmPlayers = useCallback((player1Name: string, player2Name: string) => {
-    setPlayerNames([player1Name, player2Name]);
+  const handleConfirmPlayers = useCallback((confirmed: PlayerConfig[]) => {
+    setPlayers(confirmed);
     setCurrentScreen("game");
   }, []);
 
@@ -71,7 +73,7 @@ function App() {
         <PlayerSelection onBack={goToMenu} onConfirm={handleConfirmPlayers} />
       )}
       {currentScreen === "game" && (
-        <Game player1Name={playerNames[0]} player2Name={playerNames[1]} onBack={goToMenu} />
+        <Game players={players} onBack={goToMenu} />
       )}
 
       {/* Som de hover global para todos os botões */}

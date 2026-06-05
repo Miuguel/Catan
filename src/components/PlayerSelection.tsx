@@ -3,9 +3,14 @@ import KeyboardSound from "./KeyboardSound";
 import AvatarArrowSound from "./AvatarArrowSound";
 import styles from "../styles/PlayerSelection.module.css";
 
+export interface PlayerConfig {
+  name: string;
+  avatarSrc: string;
+}
+
 interface PlayerSelectionProps {
   onBack: () => void;
-  onConfirm: (player1Name: string, player2Name: string) => void;
+  onConfirm: (players: PlayerConfig[]) => void;
 }
 
 interface AvatarOption {
@@ -142,7 +147,10 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({
       }
 
       // Confirmar ambos os jogadores
-      onConfirm(player1.name.trim(), player2.name.trim());
+      onConfirm([
+        { name: player1.name.trim(), avatarSrc: avatars[player1.avatarIndex].src },
+        { name: currentPlayer.name.trim(), avatarSrc: avatars[currentPlayer.avatarIndex].src },
+      ]);
     }
   }, [currentPlayer, currentPlayerNumber, player1, player2, onConfirm]);
 
