@@ -1,3 +1,7 @@
+import type {
+  DevelopmentCard,
+  DevelopmentCardType,
+} from "./DevelopmentCard";
 import {
   cloneResourceInventory,
   createEmptyResourceInventory,
@@ -27,7 +31,8 @@ export class Player {
   resources: ResourceInventory;
   pieces: PieceInventory;
   victoryPoints: number;
-  developmentCards: string[];
+  developmentCards: DevelopmentCard[];
+  playedKnights: number;
 
   constructor(
     id: string,
@@ -35,7 +40,7 @@ export class Player {
     kind: PlayerKind = "human",
     resources: ResourceInventory = createEmptyResourceInventory(),
     victoryPoints = 0,
-    developmentCards: string[] = [],
+    developmentCards: DevelopmentCard[] = [],
     pieces: PieceInventory = createInitialPieceInventory(),
   ) {
     this.id = id;
@@ -45,6 +50,7 @@ export class Player {
     this.pieces = { ...pieces };
     this.victoryPoints = victoryPoints;
     this.developmentCards = [...developmentCards];
+    this.playedKnights = 0;
   }
 
   addResources(resources: Partial<ResourceInventory>) {
@@ -115,8 +121,51 @@ export class Player {
     this.victoryPoints += points;
   }
 
-  addDevelopmentCard(cardName: string) {
-    this.developmentCards.push(cardName);
+  addDevelopmentCard(card: DevelopmentCard) {
+    this.developmentCards.push(card);
+  }
+
+  getDevelopmentCardCounts(): Record<DevelopmentCardType, number> {
+    const counts: Record<DevelopmentCardType, number> = {
+      knight: 0,
+      "victory-point": 0,
+      monopoly: 0,
+      "year-of-plenty": 0,
+      "road-building": 0,
+    };
+
+    this.developmentCards.forEach((card) => {
+      counts[card.type] += 1;
+    });
+
+    return counts;
+  }
+
+  countVictoryPointCards() {
+    return this.developmentCards.filter(
+      (card) => card.type === "victory-point",
+    ).length;
+  }
+
+  /** Verifica se há uma carta do tipo comprada em um turno anterior (jogável). */
+  hasPlayableDevelopmentCard(type: DevelopmentCardType, currentTurn: number) {
+    return this.developmentCards.some(
+      (card) => card.type === type && card.purchasedTurn < currentTurn,
+    );
+  }
+
+  /** Remove uma carta jogável do tipo informado. Retorna se conseguiu remover. */
+  removeDevelopmentCard(type: DevelopmentCardType, currentTurn: number) {
+    const index = this.developmentCards.findIndex(
+      (card) => card.type === type && card.purchasedTurn < currentTurn,
+    );
+
+    if (index === -1) {
+      return false;
+    }
+
+    this.developmentCards.splice(index, 1);
+    return true;
   }
 
   canBuildRoadPiece() {
