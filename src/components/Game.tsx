@@ -101,6 +101,29 @@ const RESOURCE_LABELS: Record<keyof ResourceInventory, string> = {
   ore: "Minerio",
 };
 
+const PLAYER_COLORS = [
+  "#3b82f6",
+  "#ef4444",
+  "#f59e0b",
+  "#22c55e",
+  "#a855f7",
+  "#ec4899",
+];
+
+// Chips coloridos por recurso (para o painel de debug).
+function resourceChips(resources: Partial<ResourceInventory>) {
+  return (
+    Object.entries(RESOURCE_LABELS) as Array<[keyof ResourceInventory, string]>
+  )
+    .map(
+      ([resourceType, label]) => `
+        <span class="dbg-chip" title="${label}">
+          <span class="dbg-chip__dot" style="background:${getResourceColor(resourceType)}"></span>${resources[resourceType] ?? 0}
+        </span>`,
+    )
+    .join("");
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -108,14 +131,6 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function formatResources(resources: Partial<ResourceInventory>) {
-  return (
-    Object.entries(RESOURCE_LABELS) as Array<[keyof ResourceInventory, string]>
-  )
-    .map(([resourceType, label]) => `${label} ${resources[resourceType] ?? 0}`)
-    .join(" | ");
 }
 
 // Os rótulos do TradeModal usam acentos; mapeamos para o tipo interno.
@@ -666,10 +681,10 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         <div class="game-log__title">Histórico</div>
         <div id="gameLogList" class="game-log__list"></div>
       </div>
-      <div class="debug-panel">
-        <div class="debug-panel__title">Debug</div>
+      <details class="debug-panel" open>
+        <summary class="debug-panel__title">Debug</summary>
         <div id="debugPanelContent" class="debug-panel__content"></div>
-      </div>
+      </details>
       <div id="winnerBanner" class="winner-banner"></div>
 
       <div class="players-panel">
@@ -774,90 +789,114 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
       const currentPlayer = gameState.getCurrentPlayer();
       const renderState = inputController.getRenderState();
       const robberTile = renderState.robberTile;
-      const ownedRoadCount = board.roads.filter((road) => road.isOwned()).length;
       const settlementCount = board.settlements.filter(
         (settlement) => settlement.level === "settlement",
       ).length;
       const cityCount = board.settlements.filter(
         (settlement) => settlement.level === "city",
       ).length;
+      const ownedRoadCount = board.roads.filter((road) => road.isOwned()).length;
       const allResourcesInPlayers = gameState.players.reduce(
         (total, player) => total + player.getTotalResources(),
         0,
       );
+      const holderName = (id: string | null) =>
+        id ? gameState.getPlayerById(id)?.name ?? "-" : "-";
 
-      const playerLines = gameState.players
-        .map((player) => {
-          const playerRoadCount = board.roads.filter(
-            (road) => road.ownerId === player.id,
+      const playerCards = gameState.players
+        .map((player, index) => {
+          const color = PLAYER_COLORS[index % PLAYER_COLORS.length];
+          const isActive = currentPlayer?.id === player.id;
+          const roads = board.roads.filter((r) => r.ownerId === player.id).length;
+          const towns = board.settlements.filter(
+            (s) => s.ownerId === player.id && s.level === "settlement",
           ).length;
-          const playerSettlementCount = board.settlements.filter(
-            (settlement) =>
-              settlement.ownerId === player.id &&
-              settlement.level === "settlement",
+          const cities = board.settlements.filter(
+            (s) => s.ownerId === player.id && s.level === "city",
           ).length;
-          const playerCityCount = board.settlements.filter(
-            (settlement) =>
-              settlement.ownerId === player.id &&
-              settlement.level === "city",
-          ).length;
+          const lr = gameState.longestRoadHolderId === player.id;
+          const la = gameState.largestArmyHolderId === player.id;
 
           return `
-            <div class="debug-panel__player">
-              <span>${escapeHtml(player.name)}</span>
-              <small>${player.kind === "bot" ? "BOT" : "HUMANO"} | PV ${player.victoryPoints} | Recursos ${player.getTotalResources()} | E ${playerRoadCount} | A ${playerSettlementCount} | C ${playerCityCount}</small>
-              <small>Estoque E ${player.pieces.roads} | A ${player.pieces.settlements} | C ${player.pieces.cities}</small>
-              <small>${formatResources(player.resources)}</small>
-            </div>
-          `;
+            <div class="dbg-player ${isActive ? "dbg-player--active" : ""}" style="--pc:${color}">
+              <div class="dbg-player__head">
+                <span class="dbg-player__name">${escapeHtml(player.name)}</span>
+                <span class="dbg-player__badges">
+                  <span class="dbg-badge ${player.kind === "bot" ? "dbg-badge--bot" : "dbg-badge--hum"}">${player.kind === "bot" ? "BOT" : "HUM"}</span>
+                  ${isActive ? '<span class="dbg-badge dbg-badge--turn">VEZ</span>' : ""}
+                  ${lr ? '<span class="dbg-badge" title="Maior Estrada">🛣️</span>' : ""}
+                  ${la ? '<span class="dbg-badge" title="Maior Exército">⚔️</span>' : ""}
+                </span>
+                <span class="dbg-player__vp">${player.victoryPoints} PV</span>
+              </div>
+              <div class="dbg-chips">${resourceChips(player.resources)}</div>
+              <div class="dbg-player__meta">
+                <span>mapa E${roads} A${towns} C${cities}</span>
+                <span>estoque E${player.pieces.roads} A${player.pieces.settlements} C${player.pieces.cities}</span>
+                <span>cartas ${player.developmentCards.length} · cav ${player.playedKnights}</span>
+              </div>
+            </div>`;
         })
         .join("");
 
       hudRefs.debugPanelContent.innerHTML = `
-        <div class="debug-panel__grid">
-          <span>Fase</span><strong>${escapeHtml(gameState.phase)}</strong>
-          <span>Turno</span><strong>${gameState.turnNumber}</strong>
-          <span>Jogador atual</span><strong>${escapeHtml(currentPlayer?.name ?? "-")}</strong>
-          <span>Modo input</span><strong>${escapeHtml(inputController.getMode())}</strong>
-          <span>Rolou dados</span><strong>${gameState.hasRolledDiceThisTurn ? "sim" : "nao"}</strong>
-          <span>Carta dev usada</span><strong>${gameState.hasPlayedDevelopmentCardThisTurn ? "sim" : "nao"}</strong>
-          <span>Setup</span><strong>${gameState.isInitialPlacementActive() ? gameState.getInitialPlacementStep() ?? "-" : "finalizado"}</strong>
-          <span>Ladrao</span><strong>${robberTile ? `${robberTile.q}:${robberTile.r} ${robberTile.type}` : "-"}</strong>
-        </div>
-
-        <div class="debug-panel__section">
-          <div class="debug-panel__subtitle">Banco</div>
-          <div class="debug-panel__mono">${formatResources(gameState.bank)}</div>
-        </div>
-
-        <div class="debug-panel__section">
-          <div class="debug-panel__subtitle">Tabuleiro</div>
-          <div class="debug-panel__mono">
-            Hex ${board.tiles.length} | Vertices ${board.vertices.length} | Arestas ${board.roads.length}<br />
-            Estradas ${ownedRoadCount} | Aldeias ${settlementCount} | Cidades ${cityCount}<br />
-            Recursos com jogadores ${allResourcesInPlayers}
+        <div class="dbg-section">
+          <div class="dbg-section__title">Turno</div>
+          <div class="dbg-grid">
+            <span>Fase</span><strong>${escapeHtml(gameState.phase)}</strong>
+            <span>Rodada</span><strong>${gameState.turnNumber}</strong>
+            <span>Jogador</span><strong>${escapeHtml(currentPlayer?.name ?? "-")}</strong>
+            <span>Modo</span><strong>${escapeHtml(inputController.getMode())}</strong>
+            <span>Rolou?</span><strong>${gameState.hasRolledDiceThisTurn ? "sim" : "não"}</strong>
+            <span>Carta usada?</span><strong>${gameState.hasPlayedDevelopmentCardThisTurn ? "sim" : "não"}</strong>
+            <span>Setup</span><strong>${gameState.isInitialPlacementActive() ? gameState.getInitialPlacementStep() ?? "-" : "fim"}</strong>
+            <span>Estr. grátis</span><strong>${gameState.freeRoadsRemaining}</strong>
+            <span>Ladrão</span><strong>${robberTile ? `${robberTile.q}:${robberTile.r} ${robberTile.type}` : "-"}</strong>
           </div>
         </div>
 
-        <div class="debug-panel__section">
-          <div class="debug-panel__subtitle">Selecao e hover</div>
-          <div class="debug-panel__mono">
-            selectedVertex: ${escapeHtml(renderState.selectedVertexId ?? "-")}<br />
-            selectedRoad: ${escapeHtml(renderState.selectedRoadId ?? "-")}<br />
-            hoveredVertex: ${escapeHtml(renderState.hoveredVertexId ?? "-")}<br />
-            hoveredRoad: ${escapeHtml(renderState.hoveredRoadId ?? "-")}<br />
-            hoveredTile: ${escapeHtml(renderState.hoveredTileKey ?? "-")}
+        <div class="dbg-section">
+          <div class="dbg-section__title">Banco · baralho ${gameState.getDevelopmentDeckCount()}</div>
+          <div class="dbg-chips">${resourceChips(gameState.bank)}</div>
+        </div>
+
+        <div class="dbg-section">
+          <div class="dbg-section__title">Bônus</div>
+          <div class="dbg-grid">
+            <span>🛣️ Maior Estrada</span><strong>${escapeHtml(holderName(gameState.longestRoadHolderId))}</strong>
+            <span>⚔️ Maior Exército</span><strong>${escapeHtml(holderName(gameState.largestArmyHolderId))}</strong>
           </div>
         </div>
 
-        <div class="debug-panel__section">
-          <div class="debug-panel__subtitle">Jogadores</div>
-          ${playerLines}
+        <div class="dbg-section">
+          <div class="dbg-section__title">Jogadores</div>
+          <div class="dbg-players">${playerCards}</div>
         </div>
 
-        <div class="debug-panel__section">
-          <div class="debug-panel__subtitle">Status interno</div>
-          <div class="debug-panel__mono">${escapeHtml(inputController.getStatusMessage())}</div>
+        <div class="dbg-section">
+          <div class="dbg-section__title">Tabuleiro</div>
+          <div class="dbg-grid">
+            <span>Hex / vért / arest</span><strong>${board.tiles.length} / ${board.vertices.length} / ${board.roads.length}</strong>
+            <span>Construções</span><strong>E ${ownedRoadCount} · A ${settlementCount} · C ${cityCount}</strong>
+            <span>Portos</span><strong>${board.harbors.length}</strong>
+            <span>Recursos c/ jogadores</span><strong>${allResourcesInPlayers}</strong>
+          </div>
+        </div>
+
+        <div class="dbg-section">
+          <div class="dbg-section__title">Seleção / hover</div>
+          <div class="dbg-grid dbg-grid--mono">
+            <span>sel vértice</span><strong>${escapeHtml(renderState.selectedVertexId ?? "-")}</strong>
+            <span>sel aresta</span><strong>${escapeHtml(renderState.selectedRoadId ?? "-")}</strong>
+            <span>hover vértice</span><strong>${escapeHtml(renderState.hoveredVertexId ?? "-")}</strong>
+            <span>hover aresta</span><strong>${escapeHtml(renderState.hoveredRoadId ?? "-")}</strong>
+            <span>hover hex</span><strong>${escapeHtml(renderState.hoveredTileKey ?? "-")}</strong>
+          </div>
+        </div>
+
+        <div class="dbg-section">
+          <div class="dbg-section__title">Status interno</div>
+          <div class="dbg-status">${escapeHtml(inputController.getStatusMessage())}</div>
         </div>
       `;
     }
@@ -925,7 +964,6 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         : "";
 
       // Painel lateral de jogadores — adaptável para N jogadores
-      const PLAYER_COLORS = ["#3b82f6", "#ef4444", "#f59e0b", "#22c55e", "#a855f7", "#ec4899"];
       const currentPlayerId = currentPlayer?.id ?? "";
       hudRefs.playersList.innerHTML = gameState.players.map((p, i) => {
         const isActive = p.id === currentPlayerId;
