@@ -497,3 +497,116 @@
   color: #ef4444;
   border: 1px solid rgba(239, 68, 68, 0.4);
 }
+
+.development-modal__content {
+  display: block;
+  color: #f8fafc;
+}
+
+.development-modal__warning {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(251, 191, 36, 0.42);
+  color: #fffbeb;
+  font-weight: 800;
+}
+
+.development-modal__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.development-modal__entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(203, 213, 225, 0.26);
+}
+
+.development-modal__entry-title {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.development-modal__entry-description {
+  margin-top: 3px;
+  color: #dbeafe;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.development-modal__submit {
+  min-width: 90px;
+}
+
+.development-modal__submit:disabled {
+  opacity: 0.52;
+}
+
+.development-modal__summary-card {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(22, 101, 52, 0.34);
+  border: 1px solid rgba(134, 239, 172, 0.36);
+  color: #f0fdf4;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.development-modal__summary-card strong {
+  color: #ffffff;
+}
+
+.development-modal__config h3 {
+  color: #ffffff;
+}
+
+.development-modal__resource-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.development-modal__resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.development-modal__resource-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #f8fafc;
+}
+
+.development-modal__resource-label {
+  color: #f8fafc;
+  font-weight: 700;
+}
+
+.development-modal__resource-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.development-modal__resource-count {
+  min-width: 20px;
+  text-align: center;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.development-modal__hint {
+  color: #dbeafe;
+  font-size: 12px;
+  font-weight: 600;
+}

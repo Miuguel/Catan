@@ -123,37 +123,26 @@ export const DevelopmentCardsModal: React.FC<DevelopmentCardsModalProps> = ({
           </button>
         </div>
 
-        <div className="trade-modal__content" style={{ display: "block" }}>
+        <div className="trade-modal__content development-modal__content">
           {!canPlayThisTurn && (
-            <p style={{ color: "#f59e0b", fontWeight: 600, margin: "0 0 12px" }}>
+            <p className="development-modal__warning">
               Você já jogou uma carta neste turno.
             </p>
           )}
 
           {configuring === null && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className="development-modal__list">
               {entries.map((entry) => {
                 const lockedNow = entry.playable === 0;
                 const disabled = !canPlayThisTurn || lockedNow;
 
                 return (
-                  <div
-                    key={entry.type}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      padding: "10px 14px",
-                      borderRadius: 8,
-                      background: "rgba(255,255,255,0.05)",
-                    }}
-                  >
+                  <div key={entry.type} className="development-modal__entry">
                     <div>
-                      <div style={{ fontWeight: 700, color: "#f1f5f9" }}>
+                      <div className="development-modal__entry-title">
                         {entry.name} ×{entry.total}
                       </div>
-                      <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                      <div className="development-modal__entry-description">
                         {CARD_DESCRIPTIONS[entry.type]}
                         {lockedNow && entry.total > 0
                           ? " (comprada neste turno — jogável a partir do próximo)"
@@ -161,8 +150,7 @@ export const DevelopmentCardsModal: React.FC<DevelopmentCardsModalProps> = ({
                       </div>
                     </div>
                     <button
-                      className="trade-modal__btn-submit"
-                      style={{ minWidth: 90, opacity: disabled ? 0.5 : 1 }}
+                      className="trade-modal__btn-submit development-modal__submit"
                       disabled={disabled}
                       onClick={() => {
                         setFeedback(null);
@@ -183,15 +171,7 @@ export const DevelopmentCardsModal: React.FC<DevelopmentCardsModalProps> = ({
                 );
               })}
 
-              <div
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 8,
-                  background: "rgba(34,197,94,0.08)",
-                  color: "#cbd5e1",
-                  fontSize: 13,
-                }}
-              >
+              <div className="development-modal__summary-card">
                 Pontos de Vitória na mão: <strong>{victoryPointCards}</strong>{" "}
                 (contam automaticamente). Baralho restante:{" "}
                 <strong>{deckCount}</strong>.
@@ -200,9 +180,9 @@ export const DevelopmentCardsModal: React.FC<DevelopmentCardsModalProps> = ({
           )}
 
           {configuring === "monopoly" && (
-            <div>
+            <div className="development-modal__config">
               <h3>Escolha o recurso do Monopólio</h3>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="development-modal__resource-tabs">
                 {RESOURCE_OPTIONS.map((option) => (
                   <button
                     key={option.type}
@@ -217,29 +197,22 @@ export const DevelopmentCardsModal: React.FC<DevelopmentCardsModalProps> = ({
           )}
 
           {configuring === "year-of-plenty" && (
-            <div>
+            <div className="development-modal__config">
               <h3>Escolha até 2 recursos (banco)</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="development-modal__resource-list">
                 {RESOURCE_OPTIONS.map((option) => (
-                  <div
-                    key={option.type}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <span style={{ color: "#cbd5e1" }}>
+                  <div key={option.type} className="development-modal__resource-row">
+                    <span className="development-modal__resource-label">
                       {option.icon} {option.label}
                     </span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="development-modal__resource-controls">
                       <button
                         className="trade-modal__btn-minus"
                         onClick={() => changePlenty(option.type, -1)}
                       >
                         −
                       </button>
-                      <span style={{ minWidth: 20, textAlign: "center" }}>
+                      <span className="development-modal__resource-count">
                         {plentyCounts[option.type]}
                       </span>
                       <button
@@ -252,7 +225,7 @@ export const DevelopmentCardsModal: React.FC<DevelopmentCardsModalProps> = ({
                   </div>
                 ))}
               </div>
-              <p style={{ fontSize: 12, color: "#94a3b8" }}>
+              <p className="development-modal__hint">
                 Selecionados: {plentyTotal} / 2
               </p>
             </div>

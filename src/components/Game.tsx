@@ -591,8 +591,8 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         <div class="top-bar__brand">
           <div class="top-bar__logo">C</div>
           <div class="top-bar__title-wrap">
-            <div class="top-bar__eyebrow">Catan Clone</div>
-            <div class="top-bar__title">Partida Casual</div>
+            <div class="top-bar__eyebrow">Catan</div>
+            <div class="top-bar__title">Partida</div>
           </div>
         </div>
         <div class="top-bar__center">
