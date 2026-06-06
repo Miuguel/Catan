@@ -18,6 +18,19 @@ const RESOURCE_TYPES: ResourceType[] = [
   "ore",
 ];
 
+const VERTEX_PROBABILITY_SCORES: Record<number, number> = {
+  2: 1,
+  3: 2,
+  4: 3,
+  5: 4,
+  6: 5,
+  8: 5,
+  9: 4,
+  10: 3,
+  11: 2,
+  12: 1,
+};
+
 function formatResourceList(resources: Partial<ResourceInventory>) {
   return Object.entries(resources)
     .filter(([, amount]) => amount > 0)
@@ -64,6 +77,339 @@ export class BotController {
       window.clearTimeout(this.timeoutId);
       this.timeoutId = null;
     }
+  }
+
+  private getDiceTokenScore(numberToken: number | null) {
+    return numberToken === null ? 0 : VERTEX_PROBABILITY_SCORES[numberToken] ?? 0;
+  }
+
+  private getVertexTiles(vertexId: string) {
+    return this.board.tiles.filter((tile) => tile.vertexIds.includes(vertexId));
+  }
+
+  private getVertexResourceTypes(vertexId: string) {
+    return Array.from(
+      new Set(
+        this.getVertexTiles(vertexId)
+          .map((tile) => tile.type)
+          .filter((type): type is ResourceType => type !== "desert"),
+      ),
+    );
+  }
+
+  private getVertexProbabilityScore(vertexId: string) {
+    return this.getVertexTiles(vertexId).reduce(
+      (score, tile) => score + this.getDiceTokenScore(tile.numberToken),
+      0,
+    );
+  }
+
+  private getVertexDiversityScore(vertexId: string) {
+    return this.getVertexResourceTypes(vertexId).length * 2;
+  }
+
+  private getVertexSynergyScore(vertexId: string) {
+    const resourceTypes = new Set(this.getVertexResourceTypes(vertexId));
+    let score = 0;
+
+    if (resourceTypes.has("brick") && resourceTypes.has("lumber")) {
+      score += 4;
+    }
+
+    if (resourceTypes.has("grain") && resourceTypes.has("ore")) {
+      score += 4;
+    }
+
+    return score;
+  }
+
+  private getVertexHarborScore(vertexId: string, player: Player) {
+    return this.board.harbors.reduce((score, harbor) => {
+      if (harbor.vertexAId !== vertexId && harbor.vertexBId !== vertexId) {
+        return score;
+      }
+
+      if (harbor.type === "generic") {
+        return score + 3;
+      }
+
+      return score + (player.resources[harbor.type] >= 3 ? 5 : 3);
+    }, 0);
+  }
+
+  private getNearbyOpponentSettlementPenalty(vertex: {
+    adjacentVertexIds: string[];
+  }, playerId: string) {
+    return vertex.adjacentVertexIds.reduce((penalty, adjacentVertexId) => {
+      const settlement = this.board.getSettlementAtVertex(adjacentVertexId);
+      return settlement !== undefined && settlement.ownerId !== playerId
+        ? penalty + 5
+        : penalty;
+    }, 0);
+  }
+
+  private getVertexScore(
+    vertex: { id: string; adjacentVertexIds: string[] },
+    player: Player,
+    missingResources = new Set<ResourceType>(),
+  ) {
+    const base = this.getVertexProbabilityScore(vertex.id);
+    const diversity = this.getVertexDiversityScore(vertex.id);
+    const synergy = this.getVertexSynergyScore(vertex.id);
+    const harbor = this.getVertexHarborScore(vertex.id, player);
+    const penalty = this.getNearbyOpponentSettlementPenalty(vertex, player.id);
+    const resourceTypes = this.getVertexResourceTypes(vertex.id);
+    const balanceBonus = Array.from(missingResources).reduce(
+      (bonus, resourceType) =>
+        resourceTypes.includes(resourceType) ? bonus + 2 : bonus,
+      0,
+    );
+
+    return base + diversity + synergy + harbor + balanceBonus - penalty;
+  }
+
+  private getMissingResourcesForSecondInitialSettlement(playerId: string) {
+    const ownedSettlements = this.board.settlements.filter(
+      (settlement) => settlement.ownerId === playerId,
+    );
+
+    if (ownedSettlements.length !== 1) {
+      return new Set<ResourceType>();
+    }
+
+    const coveredResources = new Set(
+      this.getVertexResourceTypes(ownedSettlements[0].vertexId),
+    );
+
+    return new Set(
+      RESOURCE_TYPES.filter((resourceType) => !coveredResources.has(resourceType)),
+    );
+  }
+
+  private findBestSettlementVertex(
+    player: Player,
+    isInitialPlacement = false,
+    missingResources = new Set<ResourceType>(),
+  ) {
+    const candidates = this.board.vertices.filter((vertex) =>
+      this.constructionRules.canBuildSettlement(
+        vertex.id,
+        player.id,
+        isInitialPlacement,
+      ),
+    );
+
+    let bestVertex:
+      | (typeof this.board.vertices)[number]
+      | undefined = undefined;
+    let bestScore = -Infinity;
+
+    for (const candidate of candidates) {
+      const score = this.getVertexScore(candidate, player, missingResources);
+
+      if (bestVertex === undefined || score > bestScore) {
+        bestVertex = candidate;
+        bestScore = score;
+      }
+    }
+
+    return bestVertex;
+  }
+
+  private getRoadResourceAccessScore(road: { vertexAId: string; vertexBId: string }) {
+    const tiles = this.board.tiles.filter(
+      (tile) =>
+        tile.vertexIds.includes(road.vertexAId) ||
+        tile.vertexIds.includes(road.vertexBId),
+    );
+
+    const total = tiles.reduce(
+      (sum, tile) => sum + this.getDiceTokenScore(tile.numberToken),
+      0,
+    );
+
+    return total * 0.5;
+  }
+
+  private getRoadExpansionScore(road: {
+    vertexAId: string;
+    vertexBId: string;
+  },
+  playerId: string) {
+    const endpoints = [
+      this.board.getVertex(road.vertexAId),
+      this.board.getVertex(road.vertexBId),
+    ];
+
+    let bestScore = 0;
+
+    for (const [index, endpoint] of endpoints.entries()) {
+      const opposite = endpoints[1 - index];
+
+      if (endpoint === undefined || opposite === undefined) {
+        continue;
+      }
+
+      if (
+        !this.board.isVertexConnectedToPlayer(endpoint.id, playerId) ||
+        opposite.isOccupied()
+      ) {
+        continue;
+      }
+
+      if (!this.board.canPlaceSettlement(opposite.id)) {
+        continue;
+      }
+
+      const vertexScore = this.getVertexScore(
+        opposite,
+        this.gameState.getPlayerById(playerId)!,
+      );
+
+      bestScore = Math.max(bestScore, vertexScore);
+    }
+
+    return bestScore * 0.5;
+  }
+
+  private getRoadEnemyBlockScore(
+    road: { vertexAId: string; vertexBId: string },
+    playerId: string,
+  ) {
+    const endpoints = [
+      this.board.getVertex(road.vertexAId),
+      this.board.getVertex(road.vertexBId),
+    ];
+
+    const isAdjacentToEnemy = (vertex: { adjacentVertexIds: string[] }) =>
+      vertex.adjacentVertexIds.some((adjacentVertexId) => {
+        const settlement = this.board.getSettlementAtVertex(adjacentVertexId);
+        return settlement !== undefined && settlement.ownerId !== playerId;
+      });
+
+    let score = 0;
+
+    for (const [index, endpoint] of endpoints.entries()) {
+      const opposite = endpoints[1 - index];
+
+      if (
+        endpoint !== undefined &&
+        this.board.isVertexConnectedToPlayer(endpoint.id, playerId) &&
+        opposite !== undefined &&
+        !opposite.isOccupied() &&
+        isAdjacentToEnemy(opposite)
+      ) {
+        score += 4;
+      }
+    }
+
+    return score;
+  }
+
+  private getRoadEnemyPenalty(
+    road: { vertexAId: string; vertexBId: string },
+    playerId: string,
+  ) {
+    return [road.vertexAId, road.vertexBId].reduce((penalty, vertexId) => {
+      const vertex = this.board.getVertex(vertexId);
+
+      if (vertex === undefined) {
+        return penalty;
+      }
+
+      const adjacentEnemyCount = vertex.adjacentVertexIds.reduce(
+        (count, adjacentVertexId) => {
+          const settlement = this.board.getSettlementAtVertex(adjacentVertexId);
+          return settlement !== undefined && settlement.ownerId !== playerId
+            ? count + 1
+            : count;
+        },
+        0,
+      );
+
+      return penalty - adjacentEnemyCount * 2;
+    }, 0);
+  }
+
+  private scoreRoad(
+    road: { vertexAId: string; vertexBId: string },
+    player: Player,
+  ) {
+    let score = 0;
+
+    if (
+      this.board.isVertexConnectedToPlayer(road.vertexAId, player.id) ||
+      this.board.isVertexConnectedToPlayer(road.vertexBId, player.id)
+    ) {
+      score += 8;
+    }
+
+    score += this.getRoadResourceAccessScore(road);
+    score += this.getRoadExpansionScore(road, player.id);
+    score += this.getRoadEnemyBlockScore(road, player.id);
+    score += this.getRoadEnemyPenalty(road, player.id);
+
+    return score;
+  }
+
+  private findBestRoad(playerId: string, isInitialPlacement = false) {
+    const candidates = this.board.roads.filter((candidate) =>
+      this.constructionRules.canBuildRoad(
+        candidate.vertexAId,
+        candidate.vertexBId,
+        playerId,
+        isInitialPlacement,
+      ),
+    );
+
+    let bestRoad:
+      | (typeof this.board.roads)[number]
+      | undefined = undefined;
+    let bestScore = -Infinity;
+
+    for (const candidate of candidates) {
+      const score = this.scoreRoad(candidate, this.gameState.getPlayerById(playerId)!);
+
+      if (bestRoad === undefined || score > bestScore) {
+        bestRoad = candidate;
+        bestScore = score;
+      }
+    }
+
+    return bestRoad;
+  }
+
+  private getCityUpgradeScore(settlement: { vertexId: string }) {
+    return (
+      this.getVertexProbabilityScore(settlement.vertexId) +
+      this.getVertexDiversityScore(settlement.vertexId) +
+      this.getVertexSynergyScore(settlement.vertexId)
+    );
+  }
+
+  private findBestCityUpgrade(player: Player) {
+    const candidates = this.board.settlements.filter(
+      (candidate) =>
+        candidate.ownerId === player.id &&
+        candidate.level === "settlement" &&
+        this.constructionRules.canUpgradeSettlement(candidate.vertexId, player.id),
+    );
+
+    let bestSettlement:
+      | (typeof this.board.settlements)[number]
+      | undefined = undefined;
+    let bestScore = -Infinity;
+
+    for (const candidate of candidates) {
+      const score = this.getCityUpgradeScore(candidate);
+
+      if (bestSettlement === undefined || score > bestScore) {
+        bestSettlement = candidate;
+        bestScore = score;
+      }
+    }
+
+    return bestSettlement;
   }
 
   private runBotAction() {
@@ -131,12 +477,12 @@ export class BotController {
     const initialStep = this.gameState.getInitialPlacementStep();
 
     if (initialStep === "settlement") {
-      const vertex = this.board.vertices.find((candidate) =>
-        this.constructionRules.canBuildSettlement(
-          candidate.id,
-          currentPlayer.id,
-          true,
-        ),
+      const missingResources =
+        this.getMissingResourcesForSecondInitialSettlement(currentPlayer.id);
+      const vertex = this.findBestSettlementVertex(
+        currentPlayer,
+        true,
+        missingResources,
       );
 
       if (vertex === undefined) {
@@ -175,14 +521,7 @@ export class BotController {
     }
 
     if (initialStep === "road") {
-      const road = this.board.roads.find((candidate) =>
-        this.constructionRules.canBuildRoad(
-          candidate.vertexAId,
-          candidate.vertexBId,
-          currentPlayer.id,
-          true,
-        ),
-      );
+      const road = this.findBestRoad(currentPlayer.id, true);
 
       if (road === undefined) {
         this.gameState.addActionLog(
@@ -339,15 +678,7 @@ export class BotController {
   }
 
   private tryBuildCity(currentPlayer: Player) {
-    const settlement = this.board.settlements.find(
-      (candidate) =>
-        candidate.ownerId === currentPlayer.id &&
-        candidate.level === "settlement" &&
-        this.constructionRules.canUpgradeSettlement(
-          candidate.vertexId,
-          currentPlayer.id,
-        ),
-    );
+    const settlement = this.findBestCityUpgrade(currentPlayer);
 
     if (settlement === undefined) {
       return false;
@@ -364,9 +695,7 @@ export class BotController {
   }
 
   private tryBuildSettlement(currentPlayer: Player) {
-    const vertex = this.board.vertices.find((candidate) =>
-      this.constructionRules.canBuildSettlement(candidate.id, currentPlayer.id),
-    );
+    const vertex = this.findBestSettlementVertex(currentPlayer);
 
     if (vertex === undefined) {
       return false;
@@ -378,13 +707,7 @@ export class BotController {
   }
 
   private tryBuildRoad(currentPlayer: Player) {
-    const road = this.board.roads.find((candidate) =>
-      this.constructionRules.canBuildRoad(
-        candidate.vertexAId,
-        candidate.vertexBId,
-        currentPlayer.id,
-      ),
-    );
+    const road = this.findBestRoad(currentPlayer.id);
 
     if (road === undefined) {
       return false;
