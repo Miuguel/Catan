@@ -432,7 +432,7 @@ export class GameState {
     if (
       this.winnerId === null &&
       current !== undefined &&
-      current.victoryPoints >= 10
+      current.victoryPoints >= 3
     ) {
       this.setWinner(current.id);
     }

@@ -32,6 +32,7 @@ import {
 } from "../core/game/DevelopmentCard";
 import type { DevelopmentCardType } from "../core/game/DevelopmentCard";
 import { getResourceName } from "../core/game/ResourceNames";
+import VictoryScreen from "./VictoryScreen";
 
 const DEV_CARD_SYMBOLS: Record<DevelopmentCardType, string> = {
   knight: "⚔️",
@@ -206,6 +207,12 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
   const discardActiveRef = useRef(false);
   const [isVictimModalOpen, setIsVictimModalOpen] = useState(false);
   const [victimOptions, setVictimOptions] = useState<RobberVictimOption[]>([]);
+  const [victoryData, setVictoryData] = useState<{
+    playerName: string;
+    playerAvatarSrc: string;
+    victoryPoints: number;
+  } | null>(null);
+  const avatarMapRef = useRef<Record<string, string>>({});
 
   const handleBankTrade = (
     offering: Record<string, number>,
@@ -544,6 +551,7 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
     // Mapa de id -> avatarSrc para uso no painel
     const avatarMap: Record<string, string> = {};
     players.forEach((p, i) => { avatarMap[`player-${i + 1}`] = p.avatarSrc; });
+    avatarMapRef.current = avatarMap;
 
     const gameState = new GameState(board, gamePlayers);
     gameContextRef.current = { gameState, players: gamePlayers };
@@ -963,6 +971,15 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         ? `${winner.name} venceu com ${winner.victoryPoints} Pontuação`
         : "";
 
+      // Mostrar tela de vitória quando o jogo terminar
+      if (winner && !victoryData) {
+        setVictoryData({
+          playerName: winner.name,
+          playerAvatarSrc: avatarMap[winner.id] ?? "/assets/images/avatars/avatar1.png",
+          victoryPoints: winner.victoryPoints,
+        });
+      }
+
       // Painel lateral de jogadores — adaptável para N jogadores
       const currentPlayerId = currentPlayer?.id ?? "";
       hudRefs.playersList.innerHTML = gameState.players.map((p, i) => {
@@ -1187,6 +1204,14 @@ const Game: FC<GameProps> = ({ players, onBack }) => {
         victims={victimOptions}
         onPick={handlePickVictim}
       />
+      {victoryData && (
+        <VictoryScreen
+          playerName={victoryData.playerName}
+          playerAvatarSrc={victoryData.playerAvatarSrc}
+          victoryPoints={victoryData.victoryPoints}
+          onReturnToMenu={onBack}
+        />
+      )}
     </>
   )
 };
