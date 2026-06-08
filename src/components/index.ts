@@ -4,3 +4,4 @@ export type { HoverButtonProps } from "./HoverButton";
 export { default as PlayerSelection } from "./PlayerSelection";
 export { default as Game } from "./Game";
 export { default as BackgroundMusic } from "./BackgroundMusic";
+export { default as VictoryScreen } from "./VictoryScreen";
